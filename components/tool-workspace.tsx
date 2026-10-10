@@ -268,8 +268,9 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
   const [position, setPosition] = useState("center");
   const [outputs, setOutputs] = useState<OutputFile[]>([]);
   const [imageOrientation, setImageOrientation] = useState<"portrait" | "landscape">("portrait");
-  const [imagePageSize, setImagePageSize] = useState<"fit" | "a4" | "letter">("a4");
-  const [imageMargin, setImageMargin] = useState<"none" | "small" | "big">("none");
+  const [imagePageSize, setImagePageSize] = useState<"fit" | "a3" | "a4" | "a5" | "letter" | "legal">("a4");
+  const [imageMargin, setImageMargin] = useState(10);
+  const [imageDimensions, setImageDimensions] = useState<Record<string, { width: number; height: number }>>({});
   const [mergeImages, setMergeImages] = useState(true);
   const [imageRotations, setImageRotations] = useState<Record<string, number>>({});
   const [imagePreviews, setImagePreviews] = useState<{ key: string; file: File; url: string }[]>([]);
@@ -312,7 +313,11 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
   }, [tool.slug, needsMultiple, expectedType]);
   const removeFile = (idx: number) => {
     const removed = files[idx];
-    if (removed && tool.slug === "images-to-pdf") setImageRotations((current) => { const next = { ...current }; delete next[imageFileKey(removed)]; return next; });
+    if (removed && tool.slug === "images-to-pdf") {
+      const key = imageFileKey(removed);
+      setImageRotations((current) => { const next = { ...current }; delete next[key]; return next; });
+      setImageDimensions((current) => { const next = { ...current }; delete next[key]; return next; });
+    }
     setFiles((current) => current.filter((_, i) => i !== idx)); setError(""); setSuccess(""); setOutputs([]); setPageCount(null);
   };
 
@@ -449,9 +454,10 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
     } finally { URL.revokeObjectURL(url); }
   }
 
-  function rotateImage(file: File) {
+  function setImageRotation(file: File, degreesClockwise: number) {
     const key = imageFileKey(file);
-    setImageRotations((current) => ({ ...current, [key]: ((current[key] ?? 0) + 90) % 360 }));
+    const normalized = ((degreesClockwise % 360) + 360) % 360;
+    setImageRotations((current) => ({ ...current, [key]: normalized }));
     setError(""); setSuccess(""); setOutputs([]);
   }
 
@@ -467,14 +473,23 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
       const resultFiles: OutputFile[] = [];
       let successMessage = "Your file is ready to download.";
       if (tool.slug === "images-to-pdf") {
-        const marginPoints = imageMargin === "none" ? 0 : imageMargin === "small" ? 18 : 36;
+        const millimetersToPoints = 72 / 25.4;
+        const marginPoints = imageMargin * millimetersToPoints;
+        const standardPageSizesMm: Record<"a3" | "a4" | "a5" | "letter" | "legal", [number, number]> = {
+          a3: [297, 420], a4: [210, 297], a5: [148, 210], letter: [215.9, 279.4], legal: [215.9, 355.6],
+        };
         const addImagePage = async (pdf: PDFDocument, file: File) => {
           const converted = await imageToJpegBytes(file, imageRotations[imageFileKey(file)] ?? 0);
           const image = await pdf.embedJpg(converted.bytes);
           let pageWidth: number; let pageHeight: number;
-          if (imagePageSize === "a4") { pageWidth = 595.28; pageHeight = 841.89; }
-          else if (imagePageSize === "letter") { pageWidth = 612; pageHeight = 792; }
-          else { pageWidth = converted.width * 0.75 + marginPoints * 2; pageHeight = converted.height * 0.75 + marginPoints * 2; }
+          if (imagePageSize === "fit") {
+            pageWidth = converted.width * 0.75 + marginPoints * 2;
+            pageHeight = converted.height * 0.75 + marginPoints * 2;
+          } else {
+            const [widthMm, heightMm] = standardPageSizesMm[imagePageSize];
+            pageWidth = widthMm * millimetersToPoints;
+            pageHeight = heightMm * millimetersToPoints;
+          }
           if (imageOrientation === "landscape" && pageHeight > pageWidth) [pageWidth, pageHeight] = [pageHeight, pageWidth];
           if (imageOrientation === "portrait" && pageWidth > pageHeight) [pageWidth, pageHeight] = [pageHeight, pageWidth];
           const availableWidth = pageWidth - marginPoints * 2; const availableHeight = pageHeight - marginPoints * 2;
@@ -684,6 +699,29 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
     } finally { setBusy(false); }
   }
 
+  const previewPageDimensionsMm = (() => {
+    const pointsToMillimeters = 25.4 / 72;
+    const fixedSizes: Record<"a3" | "a4" | "a5" | "letter" | "legal", [number, number]> = {
+      a3: [297, 420], a4: [210, 297], a5: [148, 210], letter: [215.9, 279.4], legal: [215.9, 355.6],
+    };
+    let widthMm: number; let heightMm: number;
+    if (imagePageSize === "fit") {
+      const first = imagePreviews[0];
+      const dimensions = first ? imageDimensions[first.key] : undefined;
+      if (dimensions) {
+        const rotation = first ? imageRotations[first.key] ?? 0 : 0;
+        const swaps = rotation === 90 || rotation === 270;
+        const pixelWidth = swaps ? dimensions.height : dimensions.width;
+        const pixelHeight = swaps ? dimensions.width : dimensions.height;
+        widthMm = pixelWidth * 0.75 * pointsToMillimeters + imageMargin * 2;
+        heightMm = pixelHeight * 0.75 * pointsToMillimeters + imageMargin * 2;
+      } else { widthMm = 210; heightMm = 297; }
+    } else { [widthMm, heightMm] = fixedSizes[imagePageSize]; }
+    if (imageOrientation === "landscape" && heightMm > widthMm) [widthMm, heightMm] = [heightMm, widthMm];
+    if (imageOrientation === "portrait" && widthMm > heightMm) [widthMm, heightMm] = [heightMm, widthMm];
+    return { width: widthMm, height: heightMm };
+  })();
+
   return <div className={"tool-workspace" + (tool.slug === "images-to-pdf" ? " tool-workspace-images" + (files.length > 0 ? " has-image-files" : "") : "")}>
     {tool.slug === "images-to-pdf" && <div className={"image-flow-steps" + (files.length > 0 ? " image-flow-steps-editing" : "")} aria-label="Conversion steps">
       <div className={"image-flow-step" + (files.length === 0 ? " is-current" : " is-done")}><span>{files.length === 0 ? "01" : "✓"}</span><div><strong>Add images</strong><small>JPG, PNG or WebP</small></div></div>
@@ -724,9 +762,9 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
           const fileIndex = files.findIndex((file) => imageFileKey(file) === preview.key);
           const rotation = imageRotations[preview.key] ?? 0;
           return <article className="image-preview-card" key={preview.key}>
-            <div className="image-preview-frame"><img src={preview.url} alt={"Preview of " + preview.file.name} style={{ transform: "rotate(" + rotation + "deg)" }} /></div>
-            <div className="image-preview-caption"><strong title={preview.file.name}>{index + 1}. {preview.file.name}</strong><span>{formatBytes(preview.file.size)}{rotation ? " · Rotated " + rotation + "°" : ""}</span></div>
-            <div className="image-preview-actions"><button type="button" className="button button-secondary button-small" onClick={() => rotateImage(preview.file)} aria-label={"Rotate " + preview.file.name + " 90 degrees clockwise"}><RotateCw size={15}/> Rotate 90°</button><button type="button" className="icon-button" aria-label={"Remove " + preview.file.name} title="Remove image" onClick={() => { if (fileIndex >= 0) removeFile(fileIndex); }}><Trash2 size={16}/></button></div>
+            <div className="image-preview-frame"><img src={preview.url} alt={"Preview of " + preview.file.name} onLoad={(event) => { const image = event.currentTarget; if (image.naturalWidth && image.naturalHeight) setImageDimensions((current) => ({ ...current, [preview.key]: { width: image.naturalWidth, height: image.naturalHeight } })); }} style={{ transform: "rotate(" + rotation + "deg)" }} /></div>
+            <div className="image-preview-caption"><strong title={preview.file.name}>{index + 1}. {preview.file.name}</strong><span>{formatBytes(preview.file.size)} · {rotation}° clockwise</span></div>
+            <div className="image-preview-actions image-rotation-actions"><label className="image-rotation-control"><RotateCw size={15}/><span>Rotate</span><select aria-label={"Clockwise rotation for " + preview.file.name} value={rotation} onChange={(event) => setImageRotation(preview.file, Number(event.target.value))}><option value={0}>0°</option><option value={90}>90°</option><option value={180}>180°</option><option value={270}>270°</option></select></label><button type="button" className="icon-button" aria-label={"Remove " + preview.file.name} title="Remove image" onClick={() => { if (fileIndex >= 0) removeFile(fileIndex); }}><Trash2 size={16}/></button></div>
           </article>;
         })}
       </div>}
@@ -745,19 +783,24 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
         </div>
         <div className="image-settings-row">
           <label htmlFor="image-page-size">Page size</label>
-          <select id="image-page-size" value={imagePageSize} onChange={(event) => { setImagePageSize(event.target.value as "fit" | "a4" | "letter"); setOutputs([]); }}>
-            <option value="fit">Fit (same page size as image)</option>
-            <option value="a4">A4 (210 × 297 mm)</option>
-            <option value="letter">US Letter (215.9 × 279.4 mm)</option>
+          <select id="image-page-size" value={imagePageSize} onChange={(event) => { setImagePageSize(event.target.value as "fit" | "a3" | "a4" | "a5" | "letter" | "legal"); setOutputs([]); }}>
+            <option value="fit">Fit to image</option>
+            <option value="a3">A3 — 297 × 420 mm</option>
+            <option value="a4">A4 — 210 × 297 mm</option>
+            <option value="a5">A5 — 148 × 210 mm</option>
+            <option value="letter">US Letter — 215.9 × 279.4 mm</option>
+            <option value="legal">US Legal — 215.9 × 355.6 mm</option>
           </select>
         </div>
-        <div className="image-settings-row">
-          <span className="settings-label">Margin</span>
-          <div className="angle-options image-margin-options" role="group" aria-label="Page margin">
-            <button type="button" className={"image-margin-option" + (imageMargin === "none" ? " image-margin-option-active" : "")} aria-pressed={imageMargin === "none"} onClick={() => { setImageMargin("none"); setOutputs([]); }}><span className="margin-paper margin-paper-none"><i/></span><strong>No margin</strong></button>
-            <button type="button" className={"image-margin-option" + (imageMargin === "small" ? " image-margin-option-active" : "")} aria-pressed={imageMargin === "small"} onClick={() => { setImageMargin("small"); setOutputs([]); }}><span className="margin-paper margin-paper-small"><i/></span><strong>Small</strong></button>
-            <button type="button" className={"image-margin-option" + (imageMargin === "big" ? " image-margin-option-active" : "")} aria-pressed={imageMargin === "big"} onClick={() => { setImageMargin("big"); setOutputs([]); }}><span className="margin-paper margin-paper-big"><i/></span><strong>Big</strong></button>
-          </div>
+        <div className="image-settings-row image-margin-setting">
+          <div className="image-margin-heading"><label htmlFor="image-margin-mm">Page margins</label><strong>{imageMargin} mm</strong></div>
+          <input id="image-margin-mm" className="image-margin-slider" type="range" min={0} max={30} step={1} value={imageMargin} aria-valuetext={imageMargin + " millimeters on all sides"} onChange={(event) => { setImageMargin(Number(event.target.value)); setOutputs([]); }}/>
+          <div className="image-margin-presets" aria-label="Common page margins">{[0, 5, 10, 15, 20, 25, 30].map((value) => <button key={value} type="button" className={imageMargin === value ? "image-margin-preset is-selected" : "image-margin-preset"} aria-pressed={imageMargin === value} onClick={() => { setImageMargin(value); setOutputs([]); }}>{value}</button>)}</div>
+          <p className="image-margin-help">Millimeters on each edge. This exact margin is applied to every exported page.</p>
+        </div>
+        <div className="page-layout-preview" aria-live="polite" aria-label="PDF page layout preview">
+          <div className="page-layout-paper-wrap"><div className="page-layout-paper" style={{ width: (Math.max(0.48, Math.min(1.65, previewPageDimensionsMm.width / previewPageDimensionsMm.height)) * 90) + "px", height: (90 / Math.max(0.48, Math.min(1.65, previewPageDimensionsMm.width / previewPageDimensionsMm.height))) + "px" }}><span className="page-layout-safe-area" style={{ inset: Math.min(38, imageMargin / previewPageDimensionsMm.height * 100) + "% " + Math.min(38, imageMargin / previewPageDimensionsMm.width * 100) + "%" }}/></div></div>
+          <div className="page-layout-copy"><strong>{imagePageSize === "fit" ? "Fit to image" : ({ a3: "A3", a4: "A4", a5: "A5", letter: "US Letter", legal: "US Legal" } as const)[imagePageSize]}</strong><span>{imageOrientation === "portrait" ? "Portrait" : "Landscape"} · {imageMargin} mm margins</span><small>PDF page: {previewPageDimensionsMm.width.toFixed(1)} × {previewPageDimensionsMm.height.toFixed(1)} mm</small></div>
         </div>
         <label className="merge-images-toggle"><input type="checkbox" checked={mergeImages} onChange={(event) => { setMergeImages(event.target.checked); setOutputs([]); }}/><span><strong>Merge all images in one PDF file</strong><small>{mergeImages ? "Every image becomes a page in a single PDF." : "Each image will be exported as a separate PDF."}</small></span></label>
         <p className="image-settings-note">Images are converted locally in your browser. Fit preserves the image proportions; paper sizes follow the selected orientation.</p>
