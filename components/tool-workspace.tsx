@@ -363,7 +363,7 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
             zip.file("page-" + String(pageNo).padStart(3, "0") + ".jpg", new Uint8Array(await blob.arrayBuffer()));
           }
           const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
-          resultFiles.push({ name: safeBase(files[0].name) + "-pages-png.zip", blob, size: blob.size });
+          resultFiles.push({ name: safeBase(files[0].name) + "-pages-jpg.zip", blob, size: blob.size });
         } finally { await doc.destroy(); }
       } else if (tool.slug === "pdf-to-word") {
         const pages = await extractPdfText(files[0]);
