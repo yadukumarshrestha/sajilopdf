@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import {
   Download, FileText, Image as ImageIcon, LoaderCircle, Plus, ShieldCheck,
   Trash2, UploadCloud, X, CheckCircle2, AlertCircle, GripVertical, ArrowDown,
@@ -265,7 +266,19 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
   const [targetPage, setTargetPage] = useState("all");
   const [position, setPosition] = useState("center");
   const [outputs, setOutputs] = useState<OutputFile[]>([]);
+  const [signatureFile, setSignatureFile] = useState<File | null>(null);
+  const [signatureUrl, setSignatureUrl] = useState("");
+  const [signatureLeft, setSignatureLeft] = useState(0.58);
+  const [signatureTop, setSignatureTop] = useState(0.82);
+  const [signatureWidth, setSignatureWidth] = useState(0.25);
+  const [signaturePage, setSignaturePage] = useState(1);
+  const [signatureAspect, setSignatureAspect] = useState(0.28);
+  const [previewStatus, setPreviewStatus] = useState("Upload a PDF to preview its page.");
   const inputRef = useRef<HTMLInputElement>(null);
+  const signatureInputRef = useRef<HTMLInputElement>(null);
+  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
+  const signaturePreviewRef = useRef<HTMLDivElement>(null);
+  const signatureDragOffsetRef = useRef<{ x: number; y: number } | null>(null);
 
   const needsMultiple = tool.slug === "merge-pdf" || tool.slug === "images-to-pdf";
   const acceptedFormats = tool.slug === "images-to-pdf" ? "image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
@@ -274,7 +287,7 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
     : tool.slug === "ppt-to-pdf" ? ".pptx,application/vnd.openxmlformats-officedocument.presentationml.presentation"
     : ".pdf,application/pdf";
   const expectedType = tool.slug === "images-to-pdf" ? "image" : tool.slug === "word-to-pdf" ? "DOCX" : tool.slug === "excel-to-pdf" ? "XLSX" : tool.slug === "ppt-to-pdf" ? "PPTX" : "PDF";
-  const needsText = ["edit-pdf", "watermark-pdf", "sign-pdf"].includes(tool.slug);
+  const needsText = ["edit-pdf", "watermark-pdf"].includes(tool.slug);
   const addFiles = useCallback((incoming: FileList | File[]) => {
     setError(""); setSuccess(""); setOutputs([]);
     const list = Array.from(incoming); const good: File[] = [];
@@ -291,6 +304,112 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
     setPageCount(null);
   }, [tool.slug, needsMultiple, expectedType]);
   const removeFile = (idx: number) => { setFiles((current) => current.filter((_, i) => i !== idx)); setError(""); setSuccess(""); setOutputs([]); setPageCount(null); };
+
+  useEffect(() => {
+    if (tool.slug !== "sign-pdf") return;
+    const canvas = previewCanvasRef.current;
+    if (!canvas) return;
+    if (!files.length) {
+      canvas.width = 0;
+      canvas.height = 0;
+      setPageCount(null);
+      setPreviewStatus("Upload a PDF to preview its page.");
+      return;
+    }
+
+    let cancelled = false;
+    let documentProxy: any;
+    let renderTask: any;
+    setPreviewStatus("Rendering PDF preview…");
+    (async () => {
+      const pdfjs = await getPdfJs();
+      if (cancelled) return;
+      const loadingTask = pdfjs.getDocument({ data: new Uint8Array(await files[0].arrayBuffer()) });
+      documentProxy = await loadingTask.promise;
+      if (cancelled) { await documentProxy.destroy(); return; }
+      setPageCount(documentProxy.numPages);
+      const pageNo = Math.max(1, Math.min(signaturePage, documentProxy.numPages));
+      if (pageNo !== signaturePage) {
+        setSignaturePage(pageNo);
+        return;
+      }
+      const page = await documentProxy.getPage(pageNo);
+      const baseViewport = page.getViewport({ scale: 1 });
+      const viewport = page.getViewport({ scale: Math.min(1, 720 / baseViewport.width) });
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Your browser could not render the PDF preview.");
+      renderTask = page.render({ canvas, canvasContext: context, viewport });
+      await renderTask.promise;
+      if (!cancelled) setPreviewStatus("Page " + pageNo + " of " + documentProxy.numPages + " · Drag the signature to position it.");
+    })().catch((cause) => {
+      if (!cancelled) {
+        const message = cause instanceof Error ? cause.message : "The PDF preview could not be rendered.";
+        setPreviewStatus("Preview unavailable: " + message.slice(0, 180));
+      }
+    });
+    return () => {
+      cancelled = true;
+      try { renderTask?.cancel(); } catch { /* A completed render has nothing to cancel. */ }
+      try { void documentProxy?.destroy(); } catch { /* The document may already be closed. */ }
+    };
+  }, [tool.slug, files, signaturePage]);
+
+  useEffect(() => {
+    return () => {
+      if (signatureUrl) URL.revokeObjectURL(signatureUrl);
+    };
+  }, [signatureUrl]);
+
+  function handleSignatureUpload(file?: File) {
+    if (!file) return;
+    const isPng = file.type === "image/png" || /\\.png$/i.test(file.name);
+    const isJpeg = file.type === "image/jpeg" || /\\.jpe?g$/i.test(file.name);
+    if (!isPng && !isJpeg) {
+      setError("Upload a PNG or JPG/JPEG signature image. Transparent PNG is recommended.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Signature image must be 5 MB or smaller.");
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setSignatureFile(file);
+    setSignatureUrl(url);
+    setSignatureLeft(0.58);
+    setSignatureTop(0.82);
+    setSignatureWidth(0.25);
+    setError("");
+    setSuccess("");
+    setOutputs([]);
+  }
+
+  function startSignatureDrag(event: ReactPointerEvent<HTMLImageElement>) {
+    const imageRect = event.currentTarget.getBoundingClientRect();
+    signatureDragOffsetRef.current = { x: event.clientX - imageRect.left, y: event.clientY - imageRect.top };
+    event.currentTarget.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  }
+
+  function moveSignatureDrag(event: ReactPointerEvent<HTMLImageElement>) {
+    const offset = signatureDragOffsetRef.current;
+    const stage = signaturePreviewRef.current;
+    if (!offset || !stage) return;
+    const stageRect = stage.getBoundingClientRect();
+    const imageRect = event.currentTarget.getBoundingClientRect();
+    if (!stageRect.width || !stageRect.height) return;
+    const maxLeft = Math.max(0, 1 - imageRect.width / stageRect.width);
+    const maxTop = Math.max(0, 1 - imageRect.height / stageRect.height);
+    const left = Math.max(0, Math.min(maxLeft, (event.clientX - stageRect.left - offset.x) / stageRect.width));
+    const top = Math.max(0, Math.min(maxTop, (event.clientY - stageRect.top - offset.y) / stageRect.height));
+    setSignatureLeft(left);
+    setSignatureTop(top);
+  }
+
+  function finishSignatureDrag() {
+    signatureDragOffsetRef.current = null;
+  }
 
   async function imageToJpegBytes(file: File): Promise<Uint8Array> {
     const url = URL.createObjectURL(file);
@@ -310,6 +429,7 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
     if (!files.length) { setError("Choose a file first to continue."); return; }
     if (tool.slug === "merge-pdf" && files.length < 2) { setError("Add at least two PDF files to merge."); return; }
     if (["protect-pdf", "unlock-pdf"].includes(tool.slug) && !password.trim()) { setError("Enter the PDF password to continue."); return; }
+    if (tool.slug === "sign-pdf" && !signatureFile) { setError("Upload your signature image first."); return; }
     if (needsText && !customText.trim()) { setError("Enter the text you want to place on the PDF."); return; }
     setBusy(true);
     try {
@@ -475,10 +595,25 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
           const bytes = await pdf.save(); resultFiles.push({ name: safeBase(file.name) + "-edited.pdf", blob: new Blob([bytes as BlobPart], { type: "application/pdf" }), size: bytes.byteLength });
           successMessage = "Text overlay added. This basic editor adds new text; it does not change existing PDF text.";
         } else if (tool.slug === "sign-pdf") {
-          const font = await pdf.embedFont(StandardFonts.TimesRomanItalic);
-          pdf.getPages().forEach((page) => { const { width } = page.getSize(); const size = 24; const textWidth = font.widthOfTextAtSize(customText, size); page.drawText(customText, { x: Math.max(30, width - textWidth - 48), y: 48, size, font, color: rgb(0.12, 0.2, 0.55) }); page.drawLine({ start: { x: Math.max(30, width - textWidth - 52), y: 43 }, end: { x: width - 38, y: 43 }, thickness: 0.7, color: rgb(0.12, 0.2, 0.55) }); });
-          const bytes = await pdf.save(); resultFiles.push({ name: safeBase(file.name) + "-signed.pdf", blob: new Blob([bytes as BlobPart], { type: "application/pdf" }), size: bytes.byteLength });
-          successMessage = "Visible typed signature mark added. This is not a cryptographic or certificate-backed digital signature.";
+          if (!signatureFile) throw new Error("Upload a PNG or JPG signature image first.");
+          const signatureBytes = new Uint8Array(await signatureFile.arrayBuffer());
+          const isPngSignature = signatureFile.type === "image/png" || /\\.png$/i.test(signatureFile.name);
+          const signatureImage = isPngSignature ? await pdf.embedPng(signatureBytes) : await pdf.embedJpg(signatureBytes);
+          const pages = pdf.getPages();
+          const selectedPageIndex = signaturePage - 1;
+          if (!Number.isInteger(signaturePage) || selectedPageIndex < 0 || selectedPageIndex >= pages.length) {
+            throw new Error("Select a valid page number from 1 to " + pages.length + ".");
+          }
+          const page = pages[selectedPageIndex];
+          const { width: pageWidth, height: pageHeight } = page.getSize();
+          const drawWidth = pageWidth * signatureWidth;
+          const drawHeight = drawWidth * (signatureImage.height / signatureImage.width);
+          const x = Math.max(0, Math.min(pageWidth - drawWidth, pageWidth * signatureLeft));
+          const topFromPage = Math.max(0, Math.min(pageHeight - drawHeight, pageHeight * signatureTop));
+          page.drawImage(signatureImage, { x, y: pageHeight - topFromPage - drawHeight, width: drawWidth, height: drawHeight });
+          const bytes = await pdf.save();
+          resultFiles.push({ name: safeBase(file.name) + "-signed.pdf", blob: new Blob([bytes as BlobPart], { type: "application/pdf" }), size: bytes.byteLength });
+          successMessage = "Uploaded signature image placed on page " + signaturePage + " at the position shown in the preview. This visible mark is not a certificate-backed digital signature.";
         } else if (tool.slug === "summarize-pdf") {
           const textPages = await extractPdfText(file);
           const summary = extractiveSummary(textPages);
@@ -533,10 +668,33 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
       </div>}
       {tool.slug === "rotate-pdf" && <div className="settings-panel"><span className="settings-label">Rotation angle</span><div className="angle-options">{["90", "180", "270"].map((value) => <button type="button" key={value} onClick={() => setAngle(value)} className={"angle-option" + (angle === value ? " angle-option-active" : "")}>{value}°</button>)}</div><p>Rotate every page clockwise by the selected angle.</p></div>}
       {needsText && <div className="settings-panel">
-        <label htmlFor="overlay-text">{tool.slug === "sign-pdf" ? "Typed signature" : tool.slug === "watermark-pdf" ? "Watermark text" : "Text to add"}</label>
+        <label htmlFor="overlay-text">{tool.slug === "watermark-pdf" ? "Watermark text" : "Text to add"}</label>
         <input id="overlay-text" type="text" value={customText} maxLength={160} onChange={(event) => setCustomText(event.target.value)} placeholder="Enter text (basic Latin/English font)"/>
         {tool.slug === "edit-pdf" && <><label htmlFor="target-page" style={{ marginTop: 14 }}>Page number or all</label><input id="target-page" type="text" value={targetPage} onChange={(event) => setTargetPage(event.target.value.trim() || "all")} placeholder="all or a page number"/><label htmlFor="text-position" style={{ marginTop: 14 }}>Position</label><select id="text-position" value={position} onChange={(event) => setPosition(event.target.value)}><option value="center">Center</option><option value="top">Top</option><option value="bottom">Bottom</option></select></>}
-        <p>{tool.slug === "sign-pdf" ? "Adds a visible typed signature mark, not a cryptographic digital signature. Use a name that can be represented by the standard PDF font." : tool.slug === "watermark-pdf" ? "A semi-transparent angled watermark will appear on each page." : "Adds a new text overlay; it does not edit or erase existing text. Standard PDF font works best with English/Latin characters."}</p>
+        <p>{tool.slug === "watermark-pdf" ? "A semi-transparent angled watermark will appear on each page." : "Adds a new text overlay; it does not edit or erase existing text. Standard PDF font works best with English/Latin characters."}</p>
+      </div>}
+      {tool.slug === "sign-pdf" && <div className="settings-panel signature-panel">
+        <div className="settings-label"><span>Signature image</span><span className="settings-hint">PNG or JPG · up to 5 MB</span></div>
+        <input ref={signatureInputRef} className="visually-hidden" type="file" accept="image/png,image/jpeg,.png,.jpg,.jpeg" onChange={(event) => { if (event.target.files?.[0]) handleSignatureUpload(event.target.files[0]); event.target.value = ""; }}/>
+        <div className="signature-upload-row">
+          <button type="button" className="button button-secondary button-small" onClick={() => signatureInputRef.current?.click()}><UploadCloud size={16}/> {signatureFile ? "Change signature" : "Upload signature"}</button>
+          {signatureFile && <><span className="signature-file-name">{signatureFile.name}</span><button type="button" className="icon-button" aria-label="Remove signature image" onClick={() => { setSignatureFile(null); setSignatureUrl(""); setSuccess(""); setOutputs([]); }}><X size={17}/></button></>}
+        </div>
+        <p>Use a transparent PNG for the cleanest result. Your signature image is processed in this browser and is not uploaded to SajiloPDF.</p>
+        <label htmlFor="signature-page">Place signature on page</label>
+        <input id="signature-page" type="number" min={1} max={pageCount ?? undefined} value={signaturePage} onChange={(event) => { const next = Number(event.target.value); setSignaturePage(Number.isFinite(next) && next >= 1 ? Math.floor(next) : 1); }} disabled={!files.length}/>
+        <label htmlFor="signature-size" style={{ marginTop: 12 }}>Signature size <span className="settings-hint">{Math.round(signatureWidth * 100)}% of page width</span></label>
+        <input id="signature-size" type="range" min={12} max={45} step={1} value={Math.round(signatureWidth * 100)} onChange={(event) => { const nextWidth = Number(event.target.value) / 100; setSignatureWidth(nextWidth); const canvas = previewCanvasRef.current; const imageHeightRatio = canvas?.width && canvas?.height ? nextWidth * signatureAspect * (canvas.width / canvas.height) : nextWidth * signatureAspect; setSignatureTop((current) => Math.min(current, Math.max(0, 1 - imageHeightRatio))); setSignatureLeft((current) => Math.min(current, 1 - nextWidth)); }} disabled={!signatureFile}/>
+        {files.length > 0 ? <div className="signature-preview-card">
+          <div className="signature-preview-toolbar"><strong>PDF preview</strong><span>{signatureFile ? "Drag the signature to place it" : "Upload signature to position it"}</span></div>
+          <div ref={signaturePreviewRef} className="signature-preview-stage" style={{ position: "relative", width: "100%", maxWidth: 720, margin: "0 auto", lineHeight: 0, border: "1px solid #d9ddec", background: "#f7f8fc", overflow: "hidden", borderRadius: 8 }}>
+            <canvas ref={previewCanvasRef} aria-label="PDF page preview" style={{ display: "block", width: "100%", height: "auto" }}/>
+            {signatureUrl && <img src={signatureUrl} alt="Signature placement preview" draggable={false} className="signature-stamp" onLoad={(event) => { const image = event.currentTarget; if (image.naturalWidth > 0) setSignatureAspect(image.naturalHeight / image.naturalWidth); }} onPointerDown={startSignatureDrag} onPointerMove={moveSignatureDrag} onPointerUp={finishSignatureDrag} onPointerCancel={finishSignatureDrag} style={{ position: "absolute", left: (signatureLeft * 100) + "%", top: (signatureTop * 100) + "%", width: (signatureWidth * 100) + "%", height: "auto", maxWidth: "none", cursor: "move", touchAction: "none", userSelect: "none", objectFit: "contain", filter: "drop-shadow(0 1px 1px rgba(20,30,60,.12))" }}/>}
+          </div>
+          <p className="signature-preview-status" role="status">{previewStatus}</p>
+          <p>Drag the image directly on the page. The saved PDF uses the same page number, size and position shown here.</p>
+        </div> : <p className="signature-preview-status">Upload the PDF first. The page preview appears here, then drag your signature to the preferred location.</p>}
+        <p>Signature placement adds a visible image, not a cryptographic or certificate-backed digital signature.</p>
       </div>}
       {tool.slug === "crop-pdf" && <div className="settings-panel"><label htmlFor="crop-margin">Crop margin (PDF points)</label><input id="crop-margin" type="number" min="0" max="300" value={cropMargin} onChange={(event) => setCropMargin(event.target.value)}/><p>Removes this margin from each edge of the visible page area. 1 point equals 1/72 inch.</p></div>}
       {["protect-pdf", "unlock-pdf"].includes(tool.slug) && <div className="settings-panel">
