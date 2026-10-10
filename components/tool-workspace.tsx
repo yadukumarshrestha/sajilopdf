@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import {
   Download, FileText, Image as ImageIcon, LoaderCircle, Plus, ShieldCheck,
-  Trash2, UploadCloud, X, CheckCircle2, AlertCircle, GripVertical, ArrowDown,
+  Trash2, UploadCloud, X, CheckCircle2, AlertCircle, GripVertical, ArrowDown, RotateCw,
   FileArchive, LockKeyhole, Type, Stamp, Crop, FileSpreadsheet, Presentation,
   ScanText
 } from "lucide-react";
@@ -50,6 +50,7 @@ function downloadBlob(blob: Blob, filename: string) {
   document.body.appendChild(anchor); anchor.click(); anchor.remove(); window.setTimeout(() => URL.revokeObjectURL(url), 1500);
 }
 function safeBase(name: string) { return name.replace(/\.[^.]+$/, "").replace(/[^a-z0-9-_]+/gi, "-").replace(/^-+|-+$/g, "") || "document"; }
+function imageFileKey(file: File) { return file.name + "::" + file.size + "::" + file.lastModified; }
 async function canvasBlob(canvas: HTMLCanvasElement, type = "image/png"): Promise<Blob> {
   return new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(new Error("The browser could not export this page image.")), type, 0.94));
 }
@@ -266,6 +267,12 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
   const [targetPage, setTargetPage] = useState("all");
   const [position, setPosition] = useState("center");
   const [outputs, setOutputs] = useState<OutputFile[]>([]);
+  const [imageOrientation, setImageOrientation] = useState<"portrait" | "landscape">("portrait");
+  const [imagePageSize, setImagePageSize] = useState<"fit" | "a4" | "letter">("a4");
+  const [imageMargin, setImageMargin] = useState<"none" | "small" | "big">("none");
+  const [mergeImages, setMergeImages] = useState(true);
+  const [imageRotations, setImageRotations] = useState<Record<string, number>>({});
+  const [imagePreviews, setImagePreviews] = useState<{ key: string; file: File; url: string }[]>([]);
   const [signatureFile, setSignatureFile] = useState<File | null>(null);
   const [signatureUrl, setSignatureUrl] = useState("");
   const [signatureLeft, setSignatureLeft] = useState(0.58);
@@ -303,7 +310,18 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
     });
     setPageCount(null);
   }, [tool.slug, needsMultiple, expectedType]);
-  const removeFile = (idx: number) => { setFiles((current) => current.filter((_, i) => i !== idx)); setError(""); setSuccess(""); setOutputs([]); setPageCount(null); };
+  const removeFile = (idx: number) => {
+    const removed = files[idx];
+    if (removed && tool.slug === "images-to-pdf") setImageRotations((current) => { const next = { ...current }; delete next[imageFileKey(removed)]; return next; });
+    setFiles((current) => current.filter((_, i) => i !== idx)); setError(""); setSuccess(""); setOutputs([]); setPageCount(null);
+  };
+
+  useEffect(() => {
+    if (tool.slug !== "images-to-pdf") { setImagePreviews([]); return; }
+    const previews = files.filter(isImage).map((file) => ({ key: imageFileKey(file), file, url: URL.createObjectURL(file) }));
+    setImagePreviews(previews);
+    return () => previews.forEach((preview) => URL.revokeObjectURL(preview.url));
+  }, [tool.slug, files]);
 
   useEffect(() => {
     if (tool.slug !== "sign-pdf") return;
@@ -411,17 +429,30 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
     signatureDragOffsetRef.current = null;
   }
 
-  async function imageToJpegBytes(file: File): Promise<Uint8Array> {
+  async function imageToJpegBytes(file: File, rotation = 0): Promise<{ bytes: Uint8Array; width: number; height: number }> {
     const url = URL.createObjectURL(file);
     try {
       const image = new Image(); image.src = url;
       await new Promise<void>((resolve, reject) => { image.onload = () => resolve(); image.onerror = () => reject(new Error("Could not open image " + file.name + ".")); });
-      const canvas = document.createElement("canvas"); canvas.width = image.naturalWidth; canvas.height = image.naturalHeight;
+      const turn = ((rotation % 360) + 360) % 360;
+      const swapsDimensions = turn === 90 || turn === 270;
+      const canvas = document.createElement("canvas");
+      canvas.width = swapsDimensions ? image.naturalHeight : image.naturalWidth;
+      canvas.height = swapsDimensions ? image.naturalWidth : image.naturalHeight;
       const context = canvas.getContext("2d"); if (!context) throw new Error("Your browser could not prepare this image.");
-      context.fillStyle = "#ffffff"; context.fillRect(0, 0, canvas.width, canvas.height); context.drawImage(image, 0, 0);
+      context.fillStyle = "#ffffff"; context.fillRect(0, 0, canvas.width, canvas.height);
+      context.translate(canvas.width / 2, canvas.height / 2);
+      context.rotate(turn * Math.PI / 180);
+      context.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2);
       const blob = await canvasBlob(canvas, "image/jpeg");
-      return new Uint8Array(await blob.arrayBuffer());
+      return { bytes: new Uint8Array(await blob.arrayBuffer()), width: canvas.width, height: canvas.height };
     } finally { URL.revokeObjectURL(url); }
+  }
+
+  function rotateImage(file: File) {
+    const key = imageFileKey(file);
+    setImageRotations((current) => ({ ...current, [key]: ((current[key] ?? 0) + 90) % 360 }));
+    setError(""); setSuccess(""); setOutputs([]);
   }
 
   async function makeOutput() {
@@ -436,15 +467,36 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
       const resultFiles: OutputFile[] = [];
       let successMessage = "Your file is ready to download.";
       if (tool.slug === "images-to-pdf") {
-        const pdf = await PDFDocument.create();
-        for (const file of files) {
-          const bytes = await imageToJpegBytes(file); const image = await pdf.embedJpg(bytes);
-          const pageWidth = 595.28; const pageHeight = 841.89;
-          const scale = Math.min(pageWidth / image.width, pageHeight / image.height);
+        const marginPoints = imageMargin === "none" ? 0 : imageMargin === "small" ? 18 : 36;
+        const addImagePage = async (pdf: PDFDocument, file: File) => {
+          const converted = await imageToJpegBytes(file, imageRotations[imageFileKey(file)] ?? 0);
+          const image = await pdf.embedJpg(converted.bytes);
+          let pageWidth: number; let pageHeight: number;
+          if (imagePageSize === "a4") { pageWidth = 595.28; pageHeight = 841.89; }
+          else if (imagePageSize === "letter") { pageWidth = 612; pageHeight = 792; }
+          else { pageWidth = converted.width * 0.75 + marginPoints * 2; pageHeight = converted.height * 0.75 + marginPoints * 2; }
+          if (imageOrientation === "landscape" && pageHeight > pageWidth) [pageWidth, pageHeight] = [pageHeight, pageWidth];
+          if (imageOrientation === "portrait" && pageWidth > pageHeight) [pageWidth, pageHeight] = [pageHeight, pageWidth];
+          const availableWidth = pageWidth - marginPoints * 2; const availableHeight = pageHeight - marginPoints * 2;
+          if (availableWidth <= 0 || availableHeight <= 0) throw new Error("The chosen margin is too large for this image/page size. Choose a smaller margin or a paper size.");
+          const scale = Math.min(availableWidth / image.width, availableHeight / image.height);
           const width = image.width * scale; const height = image.height * scale;
-          const page = pdf.addPage([pageWidth, pageHeight]); page.drawImage(image, { x: (pageWidth - width) / 2, y: (pageHeight - height) / 2, width, height });
+          const page = pdf.addPage([pageWidth, pageHeight]);
+          page.drawImage(image, { x: (pageWidth - width) / 2, y: (pageHeight - height) / 2, width, height });
+        };
+        if (mergeImages) {
+          const pdf = await PDFDocument.create();
+          for (const file of files) await addImagePage(pdf, file);
+          const bytes = await pdf.save(); resultFiles.push({ name: "images-combined.pdf", blob: new Blob([bytes as BlobPart], { type: "application/pdf" }), size: bytes.byteLength });
+          successMessage = "All selected images have been merged into one PDF, with one image per page.";
+        } else {
+          for (const file of files) {
+            const pdf = await PDFDocument.create(); await addImagePage(pdf, file);
+            const bytes = await pdf.save();
+            resultFiles.push({ name: safeBase(file.name) + "-converted.pdf", blob: new Blob([bytes as BlobPart], { type: "application/pdf" }), size: bytes.byteLength });
+          }
+          successMessage = "Created one PDF for each selected image.";
         }
-        const bytes = await pdf.save(); resultFiles.push({ name: "images-combined.pdf", blob: new Blob([bytes as BlobPart], { type: "application/pdf" }), size: bytes.byteLength });
       } else if (tool.slug === "merge-pdf") {
         const merged = await PDFDocument.create();
         for (const file of files) { const source = await PDFDocument.load(await file.arrayBuffer()); const pages = await merged.copyPages(source, source.getPageIndices()); pages.forEach((page) => merged.addPage(page)); }
@@ -661,10 +713,48 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
           <button type="button" className="icon-button" aria-label={"Remove " + file.name} onClick={() => removeFile(index)}><X size={17}/></button>
         </div>)}
       </div>}
+      {tool.slug === "images-to-pdf" && imagePreviews.length > 0 && <div className="image-preview-grid" aria-label="Uploaded image previews">
+        {imagePreviews.map((preview, index) => {
+          const fileIndex = files.findIndex((file) => imageFileKey(file) === preview.key);
+          const rotation = imageRotations[preview.key] ?? 0;
+          return <article className="image-preview-card" key={preview.key}>
+            <div className="image-preview-frame"><img src={preview.url} alt={"Preview of " + preview.file.name} style={{ transform: "rotate(" + rotation + "deg)" }} /></div>
+            <div className="image-preview-caption"><strong title={preview.file.name}>{index + 1}. {preview.file.name}</strong><span>{formatBytes(preview.file.size)}{rotation ? " · Rotated " + rotation + "°" : ""}</span></div>
+            <div className="image-preview-actions"><button type="button" className="button button-secondary button-small" onClick={() => rotateImage(preview.file)} aria-label={"Rotate " + preview.file.name + " 90 degrees clockwise"}><RotateCw size={15}/> Rotate 90°</button><button type="button" className="icon-button" aria-label={"Remove " + preview.file.name} title="Remove image" onClick={() => { if (fileIndex >= 0) removeFile(fileIndex); }}><Trash2 size={16}/></button></div>
+          </article>;
+        })}
+      </div>}
       {["split-pdf", "extract-pages", "remove-pages"].includes(tool.slug) && <div className="settings-panel">
         <label htmlFor="page-range">{tool.slug === "split-pdf" ? "Page ranges" : "Page numbers"}<span className="settings-hint">{tool.slug === "split-pdf" ? "Example: 1-3, 4-6, 7" : "Example: 1, 3, 5"}</span></label>
         <input id="page-range" type="text" value={pageInput} onChange={(event) => setPageInput(event.target.value)} placeholder={tool.slug === "split-pdf" ? "1-3, 4-6" : "1, 3, 5"}/>
         <p>{tool.slug === "split-pdf" ? "Each range becomes a separate PDF inside a ZIP file." : tool.slug === "extract-pages" ? "Selected pages are kept in ascending page order." : "Every listed page will be removed from the PDF."}</p>
+      </div>}
+      {tool.slug === "images-to-pdf" && <div className="settings-panel image-to-pdf-settings">
+        <div className="image-settings-row">
+          <span className="settings-label">Page orientation</span>
+          <div className="angle-options" role="group" aria-label="Page orientation">
+            <button type="button" className={"angle-option" + (imageOrientation === "portrait" ? " angle-option-active" : "")} aria-pressed={imageOrientation === "portrait"} onClick={() => { setImageOrientation("portrait"); setOutputs([]); }}>Portrait</button>
+            <button type="button" className={"angle-option" + (imageOrientation === "landscape" ? " angle-option-active" : "")} aria-pressed={imageOrientation === "landscape"} onClick={() => { setImageOrientation("landscape"); setOutputs([]); }}>Landscape</button>
+          </div>
+        </div>
+        <div className="image-settings-row">
+          <label htmlFor="image-page-size">Page size</label>
+          <select id="image-page-size" value={imagePageSize} onChange={(event) => { setImagePageSize(event.target.value as "fit" | "a4" | "letter"); setOutputs([]); }}>
+            <option value="fit">Fit (same page size as image)</option>
+            <option value="a4">A4 (210 × 297 mm)</option>
+            <option value="letter">US Letter (215.9 × 279.4 mm)</option>
+          </select>
+        </div>
+        <div className="image-settings-row">
+          <span className="settings-label">Margin</span>
+          <div className="angle-options" role="group" aria-label="Page margin">
+            <button type="button" className={"angle-option" + (imageMargin === "none" ? " angle-option-active" : "")} aria-pressed={imageMargin === "none"} onClick={() => { setImageMargin("none"); setOutputs([]); }}>No margin</button>
+            <button type="button" className={"angle-option" + (imageMargin === "small" ? " angle-option-active" : "")} aria-pressed={imageMargin === "small"} onClick={() => { setImageMargin("small"); setOutputs([]); }}>Small</button>
+            <button type="button" className={"angle-option" + (imageMargin === "big" ? " angle-option-active" : "")} aria-pressed={imageMargin === "big"} onClick={() => { setImageMargin("big"); setOutputs([]); }}>Big</button>
+          </div>
+        </div>
+        <label className="merge-images-toggle"><input type="checkbox" checked={mergeImages} onChange={(event) => { setMergeImages(event.target.checked); setOutputs([]); }}/><span><strong>Merge all images in one PDF file</strong><small>{mergeImages ? "Every image becomes a page in a single PDF." : "Each image will be exported as a separate PDF."}</small></span></label>
+        <p>Fit uses the image proportions, paper sizes follow the selected orientation, and margins are applied before the image is scaled to fit.</p>
       </div>}
       {tool.slug === "rotate-pdf" && <div className="settings-panel"><span className="settings-label">Rotation angle</span><div className="angle-options">{["90", "180", "270"].map((value) => <button type="button" key={value} onClick={() => setAngle(value)} className={"angle-option" + (angle === value ? " angle-option-active" : "")}>{value}°</button>)}</div><p>Rotate every page clockwise by the selected angle.</p></div>}
       {needsText && <div className="settings-panel">
@@ -707,7 +797,7 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
       {["word-to-pdf", "excel-to-pdf", "ppt-to-pdf"].includes(tool.slug) && <div className="settings-panel"><div className="settings-label"><span>Conversion notes</span><span className="settings-hint">Text-first conversion</span></div><p>These tools extract readable text from Office Open XML files and render it into a PDF. Document themes, images, charts, formulas, animations, embedded media and exact layouts are not guaranteed to carry over.</p></div>}
       {error && <div className="alert alert-error" role="alert"><AlertCircle size={18}/><span>{error}</span></div>}
       {success && <div className="alert alert-success" role="status"><CheckCircle2 size={18}/><span>{success}</span></div>}
-      <div className="process-row"><div className="process-assurance"><ShieldCheck size={17}/><span>Files stay on this device</span></div><button type="button" className="button button-primary process-button" onClick={makeOutput} disabled={busy || files.length === 0}>{busy ? <><LoaderCircle size={18} className="spin"/> Working...</> : <>Process {tool.name} <ArrowDown size={17}/></>}</button></div>
+      <div className="process-row"><div className="process-assurance"><ShieldCheck size={17}/><span>Files stay on this device</span></div><button type="button" className="button button-primary process-button" onClick={makeOutput} disabled={busy || files.length === 0}>{busy ? <><LoaderCircle size={18} className="spin"/> Working...</> : <>{tool.slug === "images-to-pdf" ? "Convert to PDF" : "Process " + tool.name} <ArrowDown size={17}/></>}</button></div>
       {outputs.length > 0 && <div className="output-card"><div className="output-icon"><CheckCircle2 size={23}/></div><div className="output-main"><h3>Processing finished</h3><p>Review the conversion notes above, then download your output.</p>{outputs.map((output) => <div className="output-file" key={output.name}><span className="output-file-icon">{output.name.endsWith(".zip") ? <FileArchive size={20}/> : <FileText size={20}/>}</span><span className="output-file-name"><strong>{output.name}</strong><small>{formatBytes(output.size)}</small></span><button className="button button-primary button-small" type="button" onClick={() => downloadBlob(output.blob, output.name)}><Download size={16}/> Download</button></div>)}</div></div>}
       <p className="file-note">Supported files are limited to 50 MB each. Keep this tab open until processing finishes; large PDFs can use significant memory. OCR downloads its English engine on first use.</p>
     </div>

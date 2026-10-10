@@ -15,7 +15,7 @@ export const tools: Tool[] = [
   { slug: "extract-pages", name: "Extract pages", description: "Save selected pages as a separate PDF.", category: "Organize PDF", icon: "extract", available: true },
   { slug: "rotate-pdf", name: "Rotate PDF", description: "Rotate every page clockwise by 90°, 180° or 270°.", category: "Organize PDF", icon: "rotate", available: true },
   { slug: "page-numbers", name: "Add page numbers", description: "Add page numbers to each page of your PDF.", category: "Edit PDF", icon: "numbers", available: true },
-  { slug: "images-to-pdf", name: "JPG to PDF", description: "Combine JPG, PNG or WebP images into one PDF.", category: "Convert PDF", icon: "image", available: true },
+  { slug: "images-to-pdf", name: "JPG to PDF", description: "Convert JPG, PNG or WebP images to PDF with page orientation, paper size, margins, image previews, 90° rotation and remove controls. Merge all images into one PDF or export them separately.", category: "Convert PDF", icon: "image", available: true },
   { slug: "compress-pdf", name: "Compress PDF", description: "Losslessly recompress PDF streams and document objects.", category: "Optimize PDF", icon: "compress", available: true },
   { slug: "repair-pdf", name: "Repair PDF", description: "Try to rebuild PDF structure when cross-reference data is damaged.", category: "Optimize PDF", icon: "repair", available: true },
   { slug: "ocr-pdf", name: "OCR PDF", description: "Recognize English text in scanned PDF pages and create a searchable PDF plus text file.", category: "Optimize PDF", icon: "ocr", available: true },

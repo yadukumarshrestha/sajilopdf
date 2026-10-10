@@ -18,7 +18,7 @@ SajiloPDF is an independent, browser-first toolbox for everyday PDF and document
 - OCR currently allows up to 15 pages per run
 
 ### Convert documents
-- JPG, PNG and WebP to PDF
+- JPG, PNG and WebP to PDF with portrait/landscape orientation, Fit/A4/US Letter paper sizes, no/small/big margins, upload previews, rotate/remove controls, and either a merged multi-page PDF or separate PDFs
 - PDF to JPG pages in a ZIP
 - PDF selectable text to DOCX
 - DOCX paragraphs to a raster-rendered PDF
