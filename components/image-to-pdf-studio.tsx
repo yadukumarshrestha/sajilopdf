@@ -172,20 +172,18 @@ export function ImageToPdfStudio() {
         accepted.push(file);
       }
     }
-    setFiles((current) => {
-      const next = [...current];
-      for (const file of accepted) {
-        const duplicate = next.some((candidate) =>
-          candidate.name === file.name && candidate.size === file.size && candidate.lastModified === file.lastModified
-        );
-        if (!duplicate) next.push(file);
-      }
-      if (next.length > MAX_IMAGES) {
-        problems.push("You can add up to " + MAX_IMAGES + " images per conversion.");
-        return next.slice(0, MAX_IMAGES);
-      }
-      return next;
-    });
+    const nextFiles = files.slice();
+    for (const file of accepted) {
+      const duplicate = nextFiles.some((candidate) =>
+        candidate.name === file.name && candidate.size === file.size && candidate.lastModified === file.lastModified
+      );
+      if (!duplicate) nextFiles.push(file);
+    }
+    if (nextFiles.length > MAX_IMAGES) {
+      problems.push("You can add up to " + MAX_IMAGES + " images per conversion.");
+      nextFiles.length = MAX_IMAGES;
+    }
+    setFiles(nextFiles);
     if (problems.length) setError(problems.slice(0, 3).join(" "));
     if (!accepted.length && list.length && !problems.length) setError("Choose at least one image to continue.");
   }
