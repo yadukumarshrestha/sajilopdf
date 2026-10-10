@@ -208,21 +208,30 @@ async function renderTextToPdf(sections: { title: string; lines: string[]; lands
   return pdf.save();
 }
 async function runQpdf(file: File, argsForPaths: (inputPath: string, outputPath: string, data: Uint8Array) => string[]): Promise<Uint8Array> {
-  const module = await import("@wasm-zoo/qpdf");
-  const qpdf = await module.load();
+  const imported = await import("@neslinesli93/qpdf-wasm");
+  const createModule = imported.default;
+  const qpdf = await createModule({
+    locateFile: () => "https://cdn.jsdelivr.net/npm/@neslinesli93/qpdf-wasm@0.3.0/dist/qpdf.wasm",
+    noInitialRun: true,
+  });
   const inputPath = "/sajilopdf-input.pdf";
   const outputPath = "/sajilopdf-output.pdf";
+  const data = new Uint8Array(await file.arrayBuffer());
   try {
-    const data = new Uint8Array(await file.arrayBuffer());
-    const result = await qpdf.exec(argsForPaths(inputPath, outputPath, data), {
-      files: [{ name: inputPath, data }],
-      outputs: [outputPath],
-    });
-    const entry = result.files?.find((item: { name: string }) => item.name === outputPath) ?? result.files?.[0];
-    if (!entry?.data || entry.data.byteLength === 0) throw new Error("The PDF engine did not produce an output. The file may be encrypted, damaged beyond recovery or unsupported.");
-    return new Uint8Array(entry.data);
+    qpdf.FS.writeFile(inputPath, data);
+    try {
+      qpdf.callMain(argsForPaths(inputPath, outputPath, data));
+    } catch (error) {
+      const status = typeof error === "object" && error !== null && "status" in error ? Number((error as { status: unknown }).status) : undefined;
+      const exists = qpdf.FS.analyzePath(outputPath).exists;
+      if (!(exists && status === 0)) throw error;
+    }
+    const output = qpdf.FS.readFile(outputPath);
+    if (!output || output.byteLength === 0) throw new Error("The PDF engine did not produce an output. The file may be encrypted, damaged beyond recovery or unsupported.");
+    return new Uint8Array(output);
   } finally {
-    qpdf.dispose();
+    try { qpdf.FS.unlink(inputPath); } catch { /* The virtual input may already be gone. */ }
+    try { qpdf.FS.unlink(outputPath); } catch { /* The output may not have been created. */ }
   }
 }
 function extractiveSummary(pages: PdfTextPage[]): string {
