@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import {
   Download, FileText, Image as ImageIcon, LoaderCircle, Plus, ShieldCheck,
-  Trash2, UploadCloud, X, CheckCircle2, AlertCircle, GripVertical, ArrowDown, RotateCw,
+  Trash2, UploadCloud, X, CheckCircle2, AlertCircle, GripVertical, ArrowDown, ArrowRight, RotateCw, RectangleVertical, RectangleHorizontal, Cloud,
   FileArchive, LockKeyhole, Type, Stamp, Crop, FileSpreadsheet, Presentation,
   ScanText
 } from "lucide-react";
@@ -685,7 +685,7 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
   }
 
   return <div className={"tool-workspace" + (tool.slug === "images-to-pdf" ? " tool-workspace-images" : "")}>
-    <div className="workspace-card">
+    <div className={"workspace-card" + (tool.slug === "images-to-pdf" ? " workspace-card-image-editor" : "")}>
       <div className="workspace-card-top">
         <div>
           <h2>{tool.slug === "merge-pdf" ? "Add PDFs to merge" : tool.slug === "images-to-pdf" ? "Add your images" : tool.slug === "word-to-pdf" ? "Add a Word document (.docx)" : tool.slug === "excel-to-pdf" ? "Add an Excel workbook (.xlsx)" : tool.slug === "ppt-to-pdf" ? "Add a PowerPoint (.pptx)" : "Upload your PDF"}</h2>
@@ -693,14 +693,14 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
         </div>
         <span className="local-badge"><ShieldCheck size={14}/> Local processing</span>
       </div>
-      <div className={"dropzone" + (dragging ? " dropzone-active" : "") + (files.length ? " dropzone-compact" : "")} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); addFiles(event.dataTransfer.files); }}>
+      <div className={"dropzone" + (tool.slug === "images-to-pdf" ? " image-editor-upload" : "") + (dragging ? " dropzone-active" : "") + (files.length ? " dropzone-compact" : "")} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); addFiles(event.dataTransfer.files); }}>
         {files.length === 0 ? <>
           <span className="upload-symbol"><UploadCloud size={29}/></span><h3>Drop files here</h3><p>or choose files from your device</p>
           <button type="button" className="button button-primary" onClick={() => inputRef.current?.click()}><Plus size={17}/> Choose {tool.slug === "images-to-pdf" ? "images" : tool.slug === "word-to-pdf" ? "DOCX file" : tool.slug === "excel-to-pdf" ? "XLSX file" : tool.slug === "ppt-to-pdf" ? "PPTX file" : "PDF file"}</button>
           <span className="upload-limit">{tool.slug === "images-to-pdf" ? "JPG, PNG, WebP" : tool.slug === "word-to-pdf" ? "DOCX" : tool.slug === "excel-to-pdf" ? "XLSX" : tool.slug === "ppt-to-pdf" ? "PPTX" : "PDF documents"} · Up to 50 MB per file</span>
         </> : <>
-          <span className="upload-symbol upload-symbol-small"><CheckCircle2 size={23}/></span><h3>{files.length} {files.length === 1 ? "file" : "files"} selected</h3><p>Drop a replacement or use the button below.</p>
-          <button type="button" className="button button-secondary button-small" onClick={() => inputRef.current?.click()}><Plus size={16}/> Add files</button>
+          <span className="upload-symbol upload-symbol-small"><CheckCircle2 size={23}/></span><h3>{files.length} {files.length === 1 ? "image" : "images"} selected</h3><p>{tool.slug === "images-to-pdf" ? "Add more images or adjust the thumbnails below." : "Drop a replacement or use the button below."}</p>
+          <button type="button" className="button button-secondary button-small" onClick={() => inputRef.current?.click()}><Plus size={16}/> {tool.slug === "images-to-pdf" ? "Add images" : "Add files"}</button>
         </>}
         <input ref={inputRef} className="visually-hidden" type="file" accept={acceptedFormats} multiple={needsMultiple} onChange={(event) => { if (event.target.files?.length) addFiles(event.target.files); event.target.value = ""; }}/>
       </div>
@@ -713,7 +713,7 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
           <button type="button" className="icon-button" aria-label={"Remove " + file.name} onClick={() => removeFile(index)}><X size={17}/></button>
         </div>)}
       </div>}
-      {tool.slug === "images-to-pdf" && imagePreviews.length > 0 && <div className="image-preview-grid" aria-label="Uploaded image previews">
+      {tool.slug === "images-to-pdf" && imagePreviews.length > 0 && <div className="image-preview-grid image-editor-previews" aria-label="Uploaded image previews">
         {imagePreviews.map((preview, index) => {
           const fileIndex = files.findIndex((file) => imageFileKey(file) === preview.key);
           const rotation = imageRotations[preview.key] ?? 0;
@@ -723,18 +723,21 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
             <div className="image-preview-actions"><button type="button" className="button button-secondary button-small" onClick={() => rotateImage(preview.file)} aria-label={"Rotate " + preview.file.name + " 90 degrees clockwise"}><RotateCw size={15}/> Rotate 90°</button><button type="button" className="icon-button" aria-label={"Remove " + preview.file.name} title="Remove image" onClick={() => { if (fileIndex >= 0) removeFile(fileIndex); }}><Trash2 size={16}/></button></div>
           </article>;
         })}
+        <button type="button" className="image-add-card" onClick={() => inputRef.current?.click()} aria-label="Add more images">
+          <span className="image-add-card-icon"><Plus size={24}/></span><strong>Add more images</strong><small>JPG, PNG or WebP</small>
+        </button>
       </div>}
       {["split-pdf", "extract-pages", "remove-pages"].includes(tool.slug) && <div className="settings-panel">
         <label htmlFor="page-range">{tool.slug === "split-pdf" ? "Page ranges" : "Page numbers"}<span className="settings-hint">{tool.slug === "split-pdf" ? "Example: 1-3, 4-6, 7" : "Example: 1, 3, 5"}</span></label>
         <input id="page-range" type="text" value={pageInput} onChange={(event) => setPageInput(event.target.value)} placeholder={tool.slug === "split-pdf" ? "1-3, 4-6" : "1, 3, 5"}/>
         <p>{tool.slug === "split-pdf" ? "Each range becomes a separate PDF inside a ZIP file." : tool.slug === "extract-pages" ? "Selected pages are kept in ascending page order." : "Every listed page will be removed from the PDF."}</p>
       </div>}
-      {tool.slug === "images-to-pdf" && <div className="settings-panel image-to-pdf-settings">
+      {tool.slug === "images-to-pdf" && <div className="settings-panel image-to-pdf-settings" aria-label="Conversion settings">
         <div className="image-settings-row">
           <span className="settings-label">Page orientation</span>
           <div className="angle-options" role="group" aria-label="Page orientation">
-            <button type="button" className={"angle-option" + (imageOrientation === "portrait" ? " angle-option-active" : "")} aria-pressed={imageOrientation === "portrait"} onClick={() => { setImageOrientation("portrait"); setOutputs([]); }}>Portrait</button>
-            <button type="button" className={"angle-option" + (imageOrientation === "landscape" ? " angle-option-active" : "")} aria-pressed={imageOrientation === "landscape"} onClick={() => { setImageOrientation("landscape"); setOutputs([]); }}>Landscape</button>
+            <button type="button" className={"orientation-option" + (imageOrientation === "portrait" ? " orientation-option-active" : "")} aria-pressed={imageOrientation === "portrait"} onClick={() => { setImageOrientation("portrait"); setOutputs([]); }}><RectangleVertical size={18}/><span>Portrait</span></button>
+            <button type="button" className={"orientation-option" + (imageOrientation === "landscape" ? " orientation-option-active" : "")} aria-pressed={imageOrientation === "landscape"} onClick={() => { setImageOrientation("landscape"); setOutputs([]); }}><RectangleHorizontal size={18}/><span>Landscape</span></button>
           </div>
         </div>
         <div className="image-settings-row">
@@ -748,13 +751,15 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
         <div className="image-settings-row">
           <span className="settings-label">Margin</span>
           <div className="angle-options" role="group" aria-label="Page margin">
-            <button type="button" className={"angle-option" + (imageMargin === "none" ? " angle-option-active" : "")} aria-pressed={imageMargin === "none"} onClick={() => { setImageMargin("none"); setOutputs([]); }}>No margin</button>
-            <button type="button" className={"angle-option" + (imageMargin === "small" ? " angle-option-active" : "")} aria-pressed={imageMargin === "small"} onClick={() => { setImageMargin("small"); setOutputs([]); }}>Small</button>
-            <button type="button" className={"angle-option" + (imageMargin === "big" ? " angle-option-active" : "")} aria-pressed={imageMargin === "big"} onClick={() => { setImageMargin("big"); setOutputs([]); }}>Big</button>
+            <button type="button" className={"image-margin-option" + (imageMargin === "none" ? " image-margin-option-active" : "")} aria-pressed={imageMargin === "none"} onClick={() => { setImageMargin("none"); setOutputs([]); }}><span className="margin-paper margin-paper-none"><i/></span><strong>No margin</strong></button>
+            <button type="button" className={"image-margin-option" + (imageMargin === "small" ? " image-margin-option-active" : "")} aria-pressed={imageMargin === "small"} onClick={() => { setImageMargin("small"); setOutputs([]); }}><span className="margin-paper margin-paper-small"><i/></span><strong>Small</strong></button>
+            <button type="button" className={"image-margin-option" + (imageMargin === "big" ? " image-margin-option-active" : "")} aria-pressed={imageMargin === "big"} onClick={() => { setImageMargin("big"); setOutputs([]); }}><span className="margin-paper margin-paper-big"><i/></span><strong>Big</strong></button>
           </div>
         </div>
         <label className="merge-images-toggle"><input type="checkbox" checked={mergeImages} onChange={(event) => { setMergeImages(event.target.checked); setOutputs([]); }}/><span><strong>Merge all images in one PDF file</strong><small>{mergeImages ? "Every image becomes a page in a single PDF." : "Each image will be exported as a separate PDF."}</small></span></label>
-        <p>Fit uses the image proportions, paper sizes follow the selected orientation, and margins are applied before the image is scaled to fit.</p>
+        <p className="image-settings-note">Images are converted locally in your browser. Fit preserves the image proportions; paper sizes follow the selected orientation.</p>
+        <div className="image-sidebar-footer"><div className="image-sidebar-privacy"><ShieldCheck size={16}/><span>Files stay on your device</span></div><button type="button" className="button image-convert-button" onClick={makeOutput} disabled={busy || files.length === 0}>{busy ? <><LoaderCircle size={18} className="spin"/> Converting…</> : <>Convert to PDF <ArrowRight size={18}/></>}</button></div>
+        <div className="image-cloud-shortcuts"><span className="image-cloud-label">Cloud import</span><button type="button" disabled title="Google Drive import is coming soon"><Cloud size={15}/> Google Drive <small>Soon</small></button><button type="button" disabled title="Dropbox import is coming soon"><Cloud size={15}/> Dropbox <small>Soon</small></button></div>
       </div>}
       {tool.slug === "rotate-pdf" && <div className="settings-panel"><span className="settings-label">Rotation angle</span><div className="angle-options">{["90", "180", "270"].map((value) => <button type="button" key={value} onClick={() => setAngle(value)} className={"angle-option" + (angle === value ? " angle-option-active" : "")}>{value}°</button>)}</div><p>Rotate every page clockwise by the selected angle.</p></div>}
       {needsText && <div className="settings-panel">
@@ -797,7 +802,7 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
       {["word-to-pdf", "excel-to-pdf", "ppt-to-pdf"].includes(tool.slug) && <div className="settings-panel"><div className="settings-label"><span>Conversion notes</span><span className="settings-hint">Text-first conversion</span></div><p>These tools extract readable text from Office Open XML files and render it into a PDF. Document themes, images, charts, formulas, animations, embedded media and exact layouts are not guaranteed to carry over.</p></div>}
       {error && <div className="alert alert-error" role="alert"><AlertCircle size={18}/><span>{error}</span></div>}
       {success && <div className="alert alert-success" role="status"><CheckCircle2 size={18}/><span>{success}</span></div>}
-      <div className="process-row"><div className="process-assurance"><ShieldCheck size={17}/><span>Files stay on this device</span></div><button type="button" className="button button-primary process-button" onClick={makeOutput} disabled={busy || files.length === 0}>{busy ? <><LoaderCircle size={18} className="spin"/> Working...</> : <>{tool.slug === "images-to-pdf" ? "Convert to PDF" : "Process " + tool.name} <ArrowDown size={17}/></>}</button></div>
+      <div className={"process-row" + (tool.slug === "images-to-pdf" ? " image-editor-process-hidden" : "")}><div className="process-assurance"><ShieldCheck size={17}/><span>Files stay on this device</span></div><button type="button" className="button button-primary process-button" onClick={makeOutput} disabled={busy || files.length === 0}>{busy ? <><LoaderCircle size={18} className="spin"/> Working...</> : <>{tool.slug === "images-to-pdf" ? "Convert to PDF" : "Process " + tool.name} <ArrowDown size={17}/></>}</button></div>
       {outputs.length > 0 && <div className="output-card"><div className="output-icon"><CheckCircle2 size={23}/></div><div className="output-main"><h3>Processing finished</h3><p>Review the conversion notes above, then download your output.</p>{outputs.map((output) => <div className="output-file" key={output.name}><span className="output-file-icon">{output.name.endsWith(".zip") ? <FileArchive size={20}/> : <FileText size={20}/>}</span><span className="output-file-name"><strong>{output.name}</strong><small>{formatBytes(output.size)}</small></span><button className="button button-primary button-small" type="button" onClick={() => downloadBlob(output.blob, output.name)}><Download size={16}/> Download</button></div>)}</div></div>}
       <p className="file-note">Supported files are limited to 50 MB each. Keep this tab open until processing finishes; large PDFs can use significant memory. OCR downloads its English engine on first use.</p>
     </div>
