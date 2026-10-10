@@ -209,8 +209,8 @@ async function renderTextToPdf(sections: { title: string; lines: string[]; lands
 }
 async function runQpdf(file: File, argsForPaths: (inputPath: string, outputPath: string, data: Uint8Array) => string[]): Promise<Uint8Array> {
   const imported = await import("@neslinesli93/qpdf-wasm");
-  const createModule = imported.default;
-  const qpdf = await createModule({
+  const createModule = imported.default as (options: any) => Promise<any>;
+  const qpdf: any = await createModule({
     locateFile: () => "https://cdn.jsdelivr.net/npm/@neslinesli93/qpdf-wasm@0.3.0/dist/qpdf.wasm",
     noInitialRun: true,
   });
@@ -415,7 +415,7 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
             const image = await outPdf.embedPng(new Uint8Array(await imageBlob.arrayBuffer()));
             const width = viewport.width / scale; const height = viewport.height / scale;
             const page = outPdf.addPage([width, height]); page.drawImage(image, { x: 0, y: 0, width, height });
-            for (const word of result.data.words ?? []) {
+            for (const word of ((result.data as any).words ?? []) as any[]) {
               const wordText = String(word.text ?? "").trim();
               if (!wordText || /[^\x20-\x7E]/.test(wordText)) continue;
               const box = word.bbox;
