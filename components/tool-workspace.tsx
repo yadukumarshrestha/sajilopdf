@@ -357,9 +357,10 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
             const page = await doc.getPage(pageNo); const viewport = page.getViewport({ scale: 1.5 });
             const canvas = document.createElement("canvas"); canvas.width = Math.ceil(viewport.width); canvas.height = Math.ceil(viewport.height);
             const ctx = canvas.getContext("2d"); if (!ctx) throw new Error("Your browser does not support PDF page rendering.");
+            ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
             await page.render({ canvas, canvasContext: ctx, viewport }).promise;
-            const blob = await canvasBlob(canvas, "image/png");
-            zip.file("page-" + String(pageNo).padStart(3, "0") + ".png", new Uint8Array(await blob.arrayBuffer()));
+            const blob = await canvasBlob(canvas, "image/jpeg");
+            zip.file("page-" + String(pageNo).padStart(3, "0") + ".jpg", new Uint8Array(await blob.arrayBuffer()));
           }
           const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
           resultFiles.push({ name: safeBase(files[0].name) + "-pages-png.zip", blob, size: blob.size });
@@ -501,7 +502,7 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
       <div className="workspace-card-top">
         <div>
           <h2>{tool.slug === "merge-pdf" ? "Add PDFs to merge" : tool.slug === "images-to-pdf" ? "Add your images" : tool.slug === "word-to-pdf" ? "Add a Word document (.docx)" : tool.slug === "excel-to-pdf" ? "Add an Excel workbook (.xlsx)" : tool.slug === "ppt-to-pdf" ? "Add a PowerPoint (.pptx)" : "Upload your PDF"}</h2>
-          <p>{tool.slug === "merge-pdf" ? "Files will be combined in the order shown below." : tool.slug === "images-to-pdf" ? "Images are placed on A4 pages and combined into one PDF." : tool.slug === "pdf-to-jpg" ? "Each page is rendered as a high-quality PNG and packed into a ZIP." : tool.slug === "ocr-pdf" ? "English OCR runs in your browser. First use can download the OCR engine and language data." : tool.slug === "summarize-pdf" ? "Creates a quick extractive summary from selectable text locally; scanned PDFs need OCR first." : tool.slug === "word-to-pdf" || tool.slug === "excel-to-pdf" || tool.slug === "ppt-to-pdf" ? "This lightweight converter extracts document text and renders it into a PDF. Original layout and media may not be preserved." : "Your file is processed in this browser unless the password/encryption tool loads its local WebAssembly engine."}</p>
+          <p>{tool.slug === "merge-pdf" ? "Files will be combined in the order shown below." : tool.slug === "images-to-pdf" ? "Images are placed on A4 pages and combined into one PDF." : tool.slug === "pdf-to-jpg" ? "Each page is rendered as a high-quality JPEG and packed into a ZIP." : tool.slug === "ocr-pdf" ? "English OCR runs in your browser. First use can download the OCR engine and language data." : tool.slug === "summarize-pdf" ? "Creates a quick extractive summary from selectable text locally; scanned PDFs need OCR first." : tool.slug === "word-to-pdf" || tool.slug === "excel-to-pdf" || tool.slug === "ppt-to-pdf" ? "This lightweight converter extracts document text and renders it into a PDF. Original layout and media may not be preserved." : "Your file is processed in this browser unless the password/encryption tool loads its local WebAssembly engine."}</p>
         </div>
         <span className="local-badge"><ShieldCheck size={14}/> Local processing</span>
       </div>
@@ -534,7 +535,7 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
       {needsText && <div className="settings-panel">
         <label htmlFor="overlay-text">{tool.slug === "sign-pdf" ? "Typed signature" : tool.slug === "watermark-pdf" ? "Watermark text" : "Text to add"}</label>
         <input id="overlay-text" type="text" value={customText} maxLength={160} onChange={(event) => setCustomText(event.target.value)} placeholder="Enter text (basic Latin/English font)"/>
-        {tool.slug === "edit-pdf" && <><label htmlFor="target-page" style={{ marginTop: 14 }}>Apply to page</label><select id="target-page" value={targetPage} onChange={(event) => setTargetPage(event.target.value)}><option value="all">All pages</option><option value="1">Page 1</option></select><label htmlFor="text-position" style={{ marginTop: 14 }}>Position</label><select id="text-position" value={position} onChange={(event) => setPosition(event.target.value)}><option value="center">Center</option><option value="top">Top</option><option value="bottom">Bottom</option></select></>}
+        {tool.slug === "edit-pdf" && <><label htmlFor="target-page" style={{ marginTop: 14 }}>Page number or all</label><input id="target-page" type="text" value={targetPage} onChange={(event) => setTargetPage(event.target.value.trim() || "all")} placeholder="all or a page number"/><label htmlFor="text-position" style={{ marginTop: 14 }}>Position</label><select id="text-position" value={position} onChange={(event) => setPosition(event.target.value)}><option value="center">Center</option><option value="top">Top</option><option value="bottom">Bottom</option></select></>}
         <p>{tool.slug === "sign-pdf" ? "Adds a visible typed signature mark, not a cryptographic digital signature. Use a name that can be represented by the standard PDF font." : tool.slug === "watermark-pdf" ? "A semi-transparent angled watermark will appear on each page." : "Adds a new text overlay; it does not edit or erase existing text. Standard PDF font works best with English/Latin characters."}</p>
       </div>}
       {tool.slug === "crop-pdf" && <div className="settings-panel"><label htmlFor="crop-margin">Crop margin (PDF points)</label><input id="crop-margin" type="number" min="0" max="300" value={cropMargin} onChange={(event) => setCropMargin(event.target.value)}/><p>Removes this margin from each edge of the visible page area. 1 point equals 1/72 inch.</p></div>}
