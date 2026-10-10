@@ -19,7 +19,7 @@ SajiloPDF is an independent, browser-first toolbox for everyday PDF and document
 
 ### Convert documents
 - JPG, PNG and WebP to PDF
-- PDF to PNG pages in a ZIP
+- PDF to JPG pages in a ZIP
 - PDF selectable text to DOCX
 - DOCX paragraphs to a raster-rendered PDF
 - XLSX worksheet cell values to a raster-rendered PDF
@@ -42,7 +42,7 @@ SajiloPDF is an independent, browser-first toolbox for everyday PDF and document
 - File processing happens in the browser. SajiloPDF does not upload document contents to an application server for these tools.
 - QPDF WebAssembly and the English OCR engine/language data may be downloaded by the browser on first use. This downloads tooling, not the user's PDF.
 - File size limit: 50 MB per file. Large files can still exceed the browser's available memory.
-- PDF-to-image exports are limited to 35 pages per run. OCR is limited to 15 pages per run.
+- PDF-to-JPG exports are limited to 35 pages per run. OCR is limited to 15 pages per run.
 - Text overlays/watermarks/signature marks use standard PDF fonts and are most reliable for basic Latin/English text. They do not provide font embedding or full document editing.
 - Compression is lossless; PDFs dominated by already-compressed images may not get smaller.
 - Repair is best-effort and cannot restore missing content or recover every corrupted PDF.
