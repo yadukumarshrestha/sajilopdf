@@ -684,12 +684,12 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
     } finally { setBusy(false); }
   }
 
-  return <div className="tool-workspace">
+  return <div className={"tool-workspace" + (tool.slug === "images-to-pdf" ? " tool-workspace-images" : "")}>
     <div className="workspace-card">
       <div className="workspace-card-top">
         <div>
           <h2>{tool.slug === "merge-pdf" ? "Add PDFs to merge" : tool.slug === "images-to-pdf" ? "Add your images" : tool.slug === "word-to-pdf" ? "Add a Word document (.docx)" : tool.slug === "excel-to-pdf" ? "Add an Excel workbook (.xlsx)" : tool.slug === "ppt-to-pdf" ? "Add a PowerPoint (.pptx)" : "Upload your PDF"}</h2>
-          <p>{tool.slug === "merge-pdf" ? "Files will be combined in the order shown below." : tool.slug === "images-to-pdf" ? "Images are placed on A4 pages and combined into one PDF." : tool.slug === "pdf-to-jpg" ? "Each page is rendered as a high-quality JPEG and packed into a ZIP." : tool.slug === "ocr-pdf" ? "English OCR runs in your browser. First use can download the OCR engine and language data." : tool.slug === "summarize-pdf" ? "Creates a quick extractive summary from selectable text locally; scanned PDFs need OCR first." : tool.slug === "word-to-pdf" || tool.slug === "excel-to-pdf" || tool.slug === "ppt-to-pdf" ? "This lightweight converter extracts document text and renders it into a PDF. Original layout and media may not be preserved." : "Your file is processed in this browser unless the password/encryption tool loads its local WebAssembly engine."}</p>
+          <p>{tool.slug === "merge-pdf" ? "Files will be combined in the order shown below." : tool.slug === "images-to-pdf" ? "Choose page orientation, paper size and margins, then preview, rotate or remove images before converting." : tool.slug === "pdf-to-jpg" ? "Each page is rendered as a high-quality JPEG and packed into a ZIP." : tool.slug === "ocr-pdf" ? "English OCR runs in your browser. First use can download the OCR engine and language data." : tool.slug === "summarize-pdf" ? "Creates a quick extractive summary from selectable text locally; scanned PDFs need OCR first." : tool.slug === "word-to-pdf" || tool.slug === "excel-to-pdf" || tool.slug === "ppt-to-pdf" ? "This lightweight converter extracts document text and renders it into a PDF. Original layout and media may not be preserved." : "Your file is processed in this browser unless the password/encryption tool loads its local WebAssembly engine."}</p>
         </div>
         <span className="local-badge"><ShieldCheck size={14}/> Local processing</span>
       </div>
@@ -704,7 +704,7 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
         </>}
         <input ref={inputRef} className="visually-hidden" type="file" accept={acceptedFormats} multiple={needsMultiple} onChange={(event) => { if (event.target.files?.length) addFiles(event.target.files); event.target.value = ""; }}/>
       </div>
-      {files.length > 0 && <div className="selected-files">
+      {files.length > 0 && tool.slug !== "images-to-pdf" && <div className="selected-files">
         <div className="selected-files-heading"><strong>Selected files</strong><span>{files.length} {files.length === 1 ? "file" : "files"}</span></div>
         {files.map((file, index) => <div className="file-row" key={file.name + "-" + file.lastModified + "-" + index}>
           <span className="file-type-icon">{isImage(file) ? <ImageIcon size={19}/> : tool.slug === "excel-to-pdf" ? <FileSpreadsheet size={19}/> : tool.slug === "ppt-to-pdf" ? <Presentation size={19}/> : <FileText size={19}/>}</span>
