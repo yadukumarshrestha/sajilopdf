@@ -384,7 +384,7 @@ export function ImageToPdfStudio() {
               })}
               <button type="button" className="studio-add-more-card" onClick={() => inputRef.current?.click()}><span><Plus size={22}/></span><strong>Add more images</strong><small>JPG, PNG or WebP</small></button>
             </div>
-            <div className="studio-canvas-foot"><span><FileImage size={16}/>{files.length} image {files.length === 1 ? "selected" : "selected"} · {formatSize(selectedBytes)}</span><button type="button" className="studio-text-button" onClick={() => { setFiles([]); setRotations({}); setDimensions({}); setOutputs([]); setSuccess(""); setError(""); }}><Trash2 size={15}/> Clear all</button></div>
+            <div className="studio-canvas-foot"><span><FileImage size={16}/>{files.length} {files.length === 1 ? "image" : "images"} selected · {formatSize(selectedBytes)}</span><button type="button" className="studio-text-button" onClick={() => { setFiles([]); setRotations({}); setDimensions({}); setOutputs([]); setSuccess(""); setError(""); }}><Trash2 size={15}/> Clear all</button></div>
             <input ref={inputRef} className="studio-visually-hidden" type="file" multiple accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp" onChange={(event) => { if (event.target.files?.length) addImages(event.target.files); event.target.value = ""; }}/>
           </div>
 
