@@ -750,7 +750,7 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
         </div>
         <div className="image-settings-row">
           <span className="settings-label">Margin</span>
-          <div className="angle-options" role="group" aria-label="Page margin">
+          <div className="angle-options image-margin-options" role="group" aria-label="Page margin">
             <button type="button" className={"image-margin-option" + (imageMargin === "none" ? " image-margin-option-active" : "")} aria-pressed={imageMargin === "none"} onClick={() => { setImageMargin("none"); setOutputs([]); }}><span className="margin-paper margin-paper-none"><i/></span><strong>No margin</strong></button>
             <button type="button" className={"image-margin-option" + (imageMargin === "small" ? " image-margin-option-active" : "")} aria-pressed={imageMargin === "small"} onClick={() => { setImageMargin("small"); setOutputs([]); }}><span className="margin-paper margin-paper-small"><i/></span><strong>Small</strong></button>
             <button type="button" className={"image-margin-option" + (imageMargin === "big" ? " image-margin-option-active" : "")} aria-pressed={imageMargin === "big"} onClick={() => { setImageMargin("big"); setOutputs([]); }}><span className="margin-paper margin-paper-big"><i/></span><strong>Big</strong></button>
