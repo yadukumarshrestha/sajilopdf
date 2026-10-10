@@ -11,6 +11,7 @@ import {
 import { PDFDocument, degrees, StandardFonts, rgb } from "pdf-lib";
 import JSZip from "jszip";
 import type { Tool } from "@/lib/tools";
+import { ImageToPdfStudio } from "@/components/image-to-pdf-studio";
 import { formatBytes } from "@/lib/format";
 
 type OutputFile = { name: string; blob: Blob; size: number };
@@ -252,7 +253,7 @@ function extractiveSummary(pages: PdfTextPage[]): string {
   return scored.sort((a, b) => b.score - a.score).slice(0, Math.min(5, scored.length)).sort((a, b) => a.index - b.index).map((item) => "• " + item.sentence).join("\n");
 }
 
-export function ToolWorkspace({ tool }: { tool: Tool }) {
+function LegacyToolWorkspace({ tool }: { tool: Tool }) {
   const [files, setFiles] = useState<File[]>([]);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -852,4 +853,10 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
       <p className="file-note">{tool.slug === "images-to-pdf" ? "JPG, PNG and WebP images · 50 MB per image · Files stay on your device." : "Supported files are limited to 50 MB each. Keep this tab open until processing finishes; large PDFs can use significant memory. OCR downloads its English engine on first use."}</p>
     </div>
   </div>;
+}
+
+
+export function ToolWorkspace({ tool }: { tool: Tool }) {
+  if (tool.slug === "images-to-pdf") return <ImageToPdfStudio />;
+  return <LegacyToolWorkspace tool={tool} />;
 }
