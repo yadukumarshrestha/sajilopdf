@@ -330,3 +330,113 @@ button,input,select,textarea{font-family:'Inter',Arial,sans-serif}
   .tool-workspace-images .image-margin-option{min-height:92px}
   .workspace-page-image-to-pdf .workspace-heading h1{letter-spacing:-1.3px}
 }
+
+
+/* JPG to PDF: larger controls, true margin control and a live paper preview */
+.workspace-page-image-to-pdf .workspace-heading h1{font-size:clamp(40px,4.8vw,58px);letter-spacing:-2.35px}
+.workspace-page-image-to-pdf .workspace-heading p{font-size:15.5px;line-height:1.8}
+.image-flow-step strong{font-size:12px}
+.image-flow-step small{font-size:10.5px}
+.tool-workspace-images .image-editor-upload h3{font-size:23px}
+.tool-workspace-images .image-editor-upload p{font-size:14.5px}
+.tool-workspace-images .image-editor-upload .button-primary{font-size:14.5px;min-height:52px}
+.tool-workspace-images .image-editor-upload .upload-limit{font-size:12px}
+.tool-workspace-images .image-preview-toolbar strong{font-size:19px}
+.tool-workspace-images .image-preview-toolbar>div span{font-size:12.5px}
+.tool-workspace-images .image-preview-caption strong{font-size:13px}
+.tool-workspace-images .image-preview-caption span{font-size:12px}
+.tool-workspace-images .image-preview-actions{gap:9px}
+.tool-workspace-images .image-rotation-control{
+  display:flex;align-items:center;gap:7px;flex:1;min-width:0;min-height:37px;
+  padding:0 9px;border:1px solid #e3e6ef;border-radius:9px;background:#fbfbfe;
+  color:#5b6680;font-size:12px;font-weight:700
+}
+.tool-workspace-images .image-rotation-control svg{flex:0 0 auto;color:#6857e8}
+.tool-workspace-images .image-rotation-control span{white-space:nowrap}
+.tool-workspace-images .image-rotation-control select{
+  min-width:0;flex:1;width:auto;height:31px;margin:0;padding:0 3px;border:0;
+  outline:0;background:transparent;color:#342f65;font-size:12.5px;font-weight:800
+}
+.tool-workspace-images .image-preview-actions .icon-button{width:37px;height:37px;flex:0 0 37px}
+.tool-workspace-images .image-to-pdf-settings{gap:23px}
+.tool-workspace-images .image-settings-row>label,
+.tool-workspace-images .image-settings-row>.settings-label{font-size:14px;line-height:1.5}
+.tool-workspace-images .image-settings-row select{height:49px;min-height:49px;font-size:14px;padding:0 13px}
+.tool-workspace-images .orientation-option{font-size:13px;min-height:83px}
+.tool-workspace-images .image-margin-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.tool-workspace-images .image-margin-heading label{font-size:14px;font-weight:800;color:#2a334b}
+.tool-workspace-images .image-margin-heading>strong{
+  display:inline-flex;align-items:center;justify-content:center;min-width:62px;min-height:31px;
+  padding:0 10px;border:1px solid #ded8ff;border-radius:9px;background:#f5f3ff;
+  color:#5846cc;font:800 13px 'Plus Jakarta Sans',sans-serif;white-space:nowrap
+}
+.tool-workspace-images input.image-margin-slider{
+  display:block;width:100%;height:24px;min-height:24px;margin:5px 0 0;padding:0;
+  border:0;border-radius:0;background:transparent;box-shadow:none;accent-color:#6857e8;cursor:pointer
+}
+.tool-workspace-images .image-margin-presets{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;margin-top:-4px}
+.tool-workspace-images .image-margin-preset{
+  min-width:0;min-height:35px;padding:0 2px;border:1px solid #e4e6ef;border-radius:8px;
+  background:#fff;color:#667087;font-size:12px;font-weight:700;transition:all .16s
+}
+.tool-workspace-images .image-margin-preset:hover{border-color:#c8c0ff;background:#faf9ff;color:#5946d0}
+.tool-workspace-images .image-margin-preset.is-selected{
+  border-color:#8070ed;background:#efedff;color:#4f3bc4;box-shadow:inset 0 0 0 1px #8070ed20
+}
+.tool-workspace-images .image-margin-help{margin:0;color:#788299;font-size:12px;line-height:1.6}
+.tool-workspace-images .page-layout-preview{
+  display:flex;align-items:center;gap:15px;min-width:0;padding:15px 13px;
+  border:1px solid #e5e7f1;border-radius:14px;background:linear-gradient(145deg,#fafaff,#f4f5fb)
+}
+.tool-workspace-images .page-layout-paper-wrap{
+  display:flex;align-items:center;justify-content:center;flex:0 0 104px;min-height:92px;
+  padding:3px;border-radius:9px;background:#ebeaf6
+}
+.tool-workspace-images .page-layout-paper{
+  position:relative;flex:0 0 auto;max-width:100%;border:1px solid #c5cad9;border-radius:2px;
+  background:#fff;box-shadow:0 3px 8px rgba(37,45,74,.10);transition:width .2s,height .2s
+}
+.tool-workspace-images .page-layout-safe-area{
+  position:absolute;display:block;border:1px dashed #8f82ee;border-radius:1px;
+  background:rgba(237,234,255,.5);transition:inset .18s
+}
+.tool-workspace-images .page-layout-copy{display:flex;flex-direction:column;gap:5px;min-width:0}
+.tool-workspace-images .page-layout-copy strong{font:800 14px 'Plus Jakarta Sans',sans-serif;color:#252e46}
+.tool-workspace-images .page-layout-copy span{font-size:12px;line-height:1.5;color:#606b82}
+.tool-workspace-images .page-layout-copy small{font-size:11px;line-height:1.5;color:#828ba0}
+.tool-workspace-images .merge-images-toggle{padding:15px;gap:12px}
+.tool-workspace-images .merge-images-toggle strong{font-size:13px;line-height:1.5}
+.tool-workspace-images .merge-images-toggle small{font-size:11.5px;line-height:1.55}
+.tool-workspace-images .image-settings-note{font-size:12px;line-height:1.7}
+.tool-workspace-images .image-sidebar-privacy{font-size:12px}
+.tool-workspace-images .image-convert-button{min-height:56px;font-size:15px}
+.workspace-page-image-to-pdf .workspace-note p{font-size:12px;line-height:1.75}
+@media(max-width:1040px){
+  .tool-workspace-images .image-settings-row>label,
+  .tool-workspace-images .image-settings-row>.settings-label,
+  .tool-workspace-images .image-margin-heading label{font-size:13.5px}
+  .tool-workspace-images .page-layout-preview{padding:12px 10px;gap:10px}
+  .tool-workspace-images .page-layout-paper-wrap{flex-basis:88px}
+  .tool-workspace-images .page-layout-copy strong{font-size:13px}
+}
+@media(max-width:780px){
+  .workspace-page-image-to-pdf .workspace-heading h1{font-size:clamp(36px,8.4vw,46px);letter-spacing:-1.7px}
+  .workspace-page-image-to-pdf .workspace-heading p{font-size:14px}
+  .tool-workspace-images .image-editor-upload h3{font-size:21px}
+  .tool-workspace-images .image-preview-toolbar strong{font-size:18px}
+  .tool-workspace-images .image-preview-caption strong{font-size:12.5px}
+  .tool-workspace-images .image-preview-actions .icon-button{width:37px;height:37px;flex-basis:37px}
+  .tool-workspace-images .image-margin-preset{min-height:38px;font-size:12px}
+  .tool-workspace-images .page-layout-preview{justify-content:flex-start}
+  .tool-workspace-images .page-layout-paper-wrap{flex-basis:104px}
+}
+@media(max-width:420px){
+  .workspace-page-image-to-pdf>.container{width:calc(100% - 24px)}
+  .tool-workspace-images .image-to-pdf-settings{padding:16px}
+  .tool-workspace-images .image-margin-presets{gap:4px}
+  .tool-workspace-images .image-margin-preset{font-size:11px}
+  .tool-workspace-images .page-layout-paper-wrap{flex-basis:85px}
+  .tool-workspace-images .page-layout-copy strong{font-size:12.5px}
+  .tool-workspace-images .page-layout-copy span{font-size:11px}
+  .tool-workspace-images .page-layout-copy small{font-size:10px}
+}
