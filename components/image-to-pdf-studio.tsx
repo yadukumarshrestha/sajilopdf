@@ -296,6 +296,9 @@ export function ImageToPdfStudio() {
   }
 
   const step = files.length === 0 ? 1 : outputs.length ? 3 : 2;
+  const paperVisualRatio = Math.max(0.44, Math.min(1.72, currentPaper.ratio));
+  const paperVisualWidth = paperVisualRatio >= 1 ? 78 : 78 * paperVisualRatio;
+  const paperVisualHeight = paperVisualRatio >= 1 ? 78 / paperVisualRatio : 78;
 
   return (
     <div className={"sajilo-studio" + (files.length ? " has-images" : " is-empty")}>
@@ -328,7 +331,7 @@ export function ImageToPdfStudio() {
       </section>
 
       <nav className="studio-steps" aria-label="Conversion progress">
-        <div className={step >= 1 ? "studio-step is-current" : "studio-step"}><span className="studio-step-index">{files.length ? <Check size={15}/> : "01"}</span><span><strong>Add images</strong><small>Start your stack</small></span></div>
+        <div className={step === 1 ? "studio-step is-current" : files.length ? "studio-step is-done" : "studio-step"}><span className="studio-step-index">{files.length ? <Check size={15}/> : "01"}</span><span><strong>Add images</strong><small>Start your stack</small></span></div>
         <span className="studio-step-connector"/>
         <div className={step === 2 ? "studio-step is-current" : step > 2 ? "studio-step is-done" : "studio-step"}><span className="studio-step-index">{step > 2 ? <Check size={15}/> : "02"}</span><span><strong>Set your page</strong><small>Size, margin, angle</small></span></div>
         <span className="studio-step-connector"/>
@@ -409,7 +412,7 @@ export function ImageToPdfStudio() {
             </div>
 
             <div className="studio-page-preview">
-              <div className="studio-paper-visual-wrap"><div className="studio-paper-visual" style={{ aspectRatio: Math.max(0.44, Math.min(1.72, currentPaper.ratio)) + " / 1" }}><span style={{ inset: Math.min(38, (marginMm / Math.max(1, currentPaper.heightMm)) * 100) + "% " + Math.min(38, (marginMm / Math.max(1, currentPaper.widthMm)) * 100) + "%" }}/></div></div>
+              <div className="studio-paper-visual-wrap"><div className="studio-paper-visual" style={{ width: paperVisualWidth + "px", height: paperVisualHeight + "px" }}><span style={{ inset: Math.min(38, (marginMm / Math.max(1, currentPaper.heightMm)) * 100) + "% " + Math.min(38, (marginMm / Math.max(1, currentPaper.widthMm)) * 100) + "%" }}/></div></div>
               <div className="studio-paper-detail"><strong>{PAPER_LABEL[pageSize]}</strong><span>{orientation} · {marginMm} mm margin</span><small>{currentPaper.widthMm.toFixed(1)} × {currentPaper.heightMm.toFixed(1)} mm</small></div>
             </div>
 
