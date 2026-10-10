@@ -29,7 +29,7 @@ export const tools: Tool[] = [
   { slug: "crop-pdf", name: "Crop PDF", description: "Crop the visible page area by a selected margin.", category: "Edit PDF", icon: "crop", available: true },
   { slug: "protect-pdf", name: "Protect PDF", description: "Encrypt a PDF with an open password using QPDF in WebAssembly.", category: "PDF Security", icon: "lock", available: true },
   { slug: "unlock-pdf", name: "Unlock PDF", description: "Remove PDF encryption when you know a valid password.", category: "PDF Security", icon: "unlock", available: true },
-  { slug: "sign-pdf", name: "Sign PDF", description: "Add a visible typed signature mark. This is not a certificate-backed digital signature.", category: "PDF Security", icon: "signature", available: true },
+  { slug: "sign-pdf", name: "Sign PDF", description: "Upload a PNG/JPG signature, preview a PDF page, and drag the signature to the desired position. This is a visible image stamp, not a certificate-backed digital signature.", category: "PDF Security", icon: "signature", available: true },
   { slug: "summarize-pdf", name: "Summarize PDF", description: "Create a local extractive summary from selectable PDF text without sending the file to an AI service.", category: "AI PDF", icon: "sparkles", available: true },
 ];
 

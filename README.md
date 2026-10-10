@@ -32,7 +32,7 @@ SajiloPDF is an independent, browser-first toolbox for everyday PDF and document
 - Crop the visible page area
 - Password-protect a PDF with QPDF AES-256 encryption
 - Remove encryption when the correct password is supplied and the user has authorization
-- Add a visible typed signature mark. This is **not** a certificate-backed cryptographic digital signature.
+- Upload a PNG/JPG signature image, preview a PDF page, drag the signature to the desired position, resize it, and place it on a selected page. The result is a visible image stamp, **not** a certificate-backed cryptographic digital signature.
 
 ### Summarize
 - Local extractive summary from selectable PDF text. This is a sentence-scoring heuristic, not an AI-generated summary; scanned documents should be OCR'd first.
