@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import {
   Download, FileText, Image as ImageIcon, LoaderCircle, Plus, ShieldCheck,
-  Trash2, UploadCloud, X, CheckCircle2, AlertCircle, GripVertical, ArrowDown, ArrowRight, RotateCw, RectangleVertical, RectangleHorizontal, Cloud,
+  Trash2, UploadCloud, X, CheckCircle2, AlertCircle, GripVertical, ArrowDown, ArrowRight, RotateCw, RectangleVertical, RectangleHorizontal,
   FileArchive, LockKeyhole, Type, Stamp, Crop, FileSpreadsheet, Presentation,
   ScanText
 } from "lucide-react";
@@ -684,7 +684,7 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
     } finally { setBusy(false); }
   }
 
-  return <div className={"tool-workspace" + (tool.slug === "images-to-pdf" ? " tool-workspace-images" : "")}>
+  return <div className={"tool-workspace" + (tool.slug === "images-to-pdf" ? " tool-workspace-images" + (files.length > 0 ? " has-image-files" : "") : "")}>
     <div className={"workspace-card" + (tool.slug === "images-to-pdf" ? " workspace-card-image-editor" : "")}>
       <div className="workspace-card-top">
         <div>
@@ -714,6 +714,7 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
         </div>)}
       </div>}
       {tool.slug === "images-to-pdf" && imagePreviews.length > 0 && <div className="image-preview-grid image-editor-previews" aria-label="Uploaded image previews">
+        <div className="image-preview-toolbar"><div><strong>Your images</strong><span>Use Rotate or Remove on each thumbnail before converting.</span></div><button type="button" className="image-editor-add-button" onClick={() => inputRef.current?.click()}><Plus size={17}/> Add images <span className="image-editor-count">{files.length}</span></button></div>
         {imagePreviews.map((preview, index) => {
           const fileIndex = files.findIndex((file) => imageFileKey(file) === preview.key);
           const rotation = imageRotations[preview.key] ?? 0;
@@ -723,9 +724,6 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
             <div className="image-preview-actions"><button type="button" className="button button-secondary button-small" onClick={() => rotateImage(preview.file)} aria-label={"Rotate " + preview.file.name + " 90 degrees clockwise"}><RotateCw size={15}/> Rotate 90°</button><button type="button" className="icon-button" aria-label={"Remove " + preview.file.name} title="Remove image" onClick={() => { if (fileIndex >= 0) removeFile(fileIndex); }}><Trash2 size={16}/></button></div>
           </article>;
         })}
-        <button type="button" className="image-add-card" onClick={() => inputRef.current?.click()} aria-label="Add more images">
-          <span className="image-add-card-icon"><Plus size={24}/></span><strong>Add more images</strong><small>JPG, PNG or WebP</small>
-        </button>
       </div>}
       {["split-pdf", "extract-pages", "remove-pages"].includes(tool.slug) && <div className="settings-panel">
         <label htmlFor="page-range">{tool.slug === "split-pdf" ? "Page ranges" : "Page numbers"}<span className="settings-hint">{tool.slug === "split-pdf" ? "Example: 1-3, 4-6, 7" : "Example: 1, 3, 5"}</span></label>
@@ -759,7 +757,6 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
         <label className="merge-images-toggle"><input type="checkbox" checked={mergeImages} onChange={(event) => { setMergeImages(event.target.checked); setOutputs([]); }}/><span><strong>Merge all images in one PDF file</strong><small>{mergeImages ? "Every image becomes a page in a single PDF." : "Each image will be exported as a separate PDF."}</small></span></label>
         <p className="image-settings-note">Images are converted locally in your browser. Fit preserves the image proportions; paper sizes follow the selected orientation.</p>
         <div className="image-sidebar-footer"><div className="image-sidebar-privacy"><ShieldCheck size={16}/><span>Files stay on your device</span></div><button type="button" className="button image-convert-button" onClick={makeOutput} disabled={busy || files.length === 0}>{busy ? <><LoaderCircle size={18} className="spin"/> Converting…</> : <>Convert to PDF <ArrowRight size={18}/></>}</button></div>
-        <div className="image-cloud-shortcuts"><span className="image-cloud-label">Cloud import</span><button type="button" disabled title="Google Drive import is coming soon"><Cloud size={15}/> Google Drive <small>Soon</small></button><button type="button" disabled title="Dropbox import is coming soon"><Cloud size={15}/> Dropbox <small>Soon</small></button></div>
       </div>}
       {tool.slug === "rotate-pdf" && <div className="settings-panel"><span className="settings-label">Rotation angle</span><div className="angle-options">{["90", "180", "270"].map((value) => <button type="button" key={value} onClick={() => setAngle(value)} className={"angle-option" + (angle === value ? " angle-option-active" : "")}>{value}°</button>)}</div><p>Rotate every page clockwise by the selected angle.</p></div>}
       {needsText && <div className="settings-panel">
@@ -804,7 +801,7 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
       {success && <div className="alert alert-success" role="status"><CheckCircle2 size={18}/><span>{success}</span></div>}
       <div className={"process-row" + (tool.slug === "images-to-pdf" ? " image-editor-process-hidden" : "")}><div className="process-assurance"><ShieldCheck size={17}/><span>Files stay on this device</span></div><button type="button" className="button button-primary process-button" onClick={makeOutput} disabled={busy || files.length === 0}>{busy ? <><LoaderCircle size={18} className="spin"/> Working...</> : <>{tool.slug === "images-to-pdf" ? "Convert to PDF" : "Process " + tool.name} <ArrowDown size={17}/></>}</button></div>
       {outputs.length > 0 && <div className="output-card"><div className="output-icon"><CheckCircle2 size={23}/></div><div className="output-main"><h3>Processing finished</h3><p>Review the conversion notes above, then download your output.</p>{outputs.map((output) => <div className="output-file" key={output.name}><span className="output-file-icon">{output.name.endsWith(".zip") ? <FileArchive size={20}/> : <FileText size={20}/>}</span><span className="output-file-name"><strong>{output.name}</strong><small>{formatBytes(output.size)}</small></span><button className="button button-primary button-small" type="button" onClick={() => downloadBlob(output.blob, output.name)}><Download size={16}/> Download</button></div>)}</div></div>}
-      <p className="file-note">Supported files are limited to 50 MB each. Keep this tab open until processing finishes; large PDFs can use significant memory. OCR downloads its English engine on first use.</p>
+      <p className="file-note">{tool.slug === "images-to-pdf" ? "JPG, PNG and WebP images · 50 MB per image · Files stay on your device." : "Supported files are limited to 50 MB each. Keep this tab open until processing finishes; large PDFs can use significant memory. OCR downloads its English engine on first use."}</p>
     </div>
   </div>;
 }
