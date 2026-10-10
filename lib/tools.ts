@@ -21,7 +21,7 @@ export const tools: Tool[] = [
   { slug: "ocr-pdf", name: "OCR PDF", description: "Recognize English text in scanned PDF pages and create a searchable PDF plus text file.", category: "Optimize PDF", icon: "ocr", available: true },
   { slug: "pdf-to-word", name: "PDF to Word", description: "Extract selectable PDF text into an editable Word document.", category: "Convert PDF", icon: "word", available: true },
   { slug: "word-to-pdf", name: "Word to PDF", description: "Convert DOCX paragraph text into a PDF. Complex layout and embedded media may not be preserved.", category: "Convert PDF", icon: "word", available: true },
-  { slug: "pdf-to-jpg", name: "PDF to JPG", description: "Render each PDF page as a PNG image and download them together.", category: "Convert PDF", icon: "image", available: true },
+  { slug: "pdf-to-jpg", name: "PDF to JPG", description: "Render each PDF page as a JPG image and download them together.", category: "Convert PDF", icon: "image", available: true },
   { slug: "excel-to-pdf", name: "Excel to PDF", description: "Convert worksheet cell values into a readable PDF; workbook styling may not be preserved.", category: "Convert PDF", icon: "excel", available: true },
   { slug: "ppt-to-pdf", name: "PowerPoint to PDF", description: "Convert slide text to PDF pages; original slide designs and embedded media may not be preserved.", category: "Convert PDF", icon: "slides", available: true },
   { slug: "edit-pdf", name: "Edit PDF", description: "Add a text overlay to every page or a chosen page of a PDF.", category: "Edit PDF", icon: "edit", available: true },
