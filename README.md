@@ -1,19 +1,54 @@
 # SajiloPDF
 
-A browser-first, Next.js PDF toolbox starter with an original SajiloPDF brand and responsive UI. This project does not copy iLovePDF's code, logo, or branding; it builds similar core functionality independently.
+SajiloPDF is an independent, browser-first toolbox for everyday PDF and document tasks. It has its own branding and implementation; it does not copy iLovePDF source code or branding.
 
-## What's functional in this first milestone
+## Tools currently available
 
-- **Merge PDF** — merge two or more PDFs in selected order.
-- **Split PDF** — split by page ranges and download each part in a ZIP.
-- **Remove pages** — delete selected pages from a PDF.
-- **Extract pages** — save selected pages as a new PDF.
-- **Rotate PDF** — rotate all pages by 90°, 180°, or 270° clockwise.
-- **Add page numbers** — add a small page number to each page.
-- **JPG to PDF** — combine JPG, PNG, and WebP images into one A4 PDF.
-- Responsive homepage, tool search and category filters, SEO metadata, privacy/about pages, and a roadmap catalog for future tools.
+### Organize PDFs
+- Merge PDFs in chosen order
+- Split a PDF by ranges and download parts in a ZIP
+- Remove pages and extract selected pages
+- Rotate all pages
+- Add page numbers
 
-Tools marked **Planned** are intentionally not advertised as working yet. Each current tool processes documents locally in the browser. This release has a 50 MB per-file limit. It has no login, payment, cloud history or server-side processing.
+### Optimize and OCR
+- Lossless PDF stream/object recompression with QPDF WebAssembly (actual savings depend on the PDF)
+- Best-effort PDF structure repair (severely damaged files may not be recoverable)
+- English OCR for scanned PDFs; creates a raster-backed searchable PDF plus extracted text
+- OCR currently allows up to 15 pages per run
+
+### Convert documents
+- JPG, PNG and WebP to PDF
+- PDF to PNG pages in a ZIP
+- PDF selectable text to DOCX
+- DOCX paragraphs to a raster-rendered PDF
+- XLSX worksheet cell values to a raster-rendered PDF
+- PPTX slide text to landscape PDF pages
+- Text-first Office conversions intentionally do not promise original layout, fonts, charts, media, formulas or animation fidelity
+
+### Edit and protect
+- Add a text overlay to a selected page or all pages
+- Apply angled text watermarks
+- Crop the visible page area
+- Password-protect a PDF with QPDF AES-256 encryption
+- Remove encryption when the correct password is supplied and the user has authorization
+- Add a visible typed signature mark. This is **not** a certificate-backed cryptographic digital signature.
+
+### Summarize
+- Local extractive summary from selectable PDF text. This is a sentence-scoring heuristic, not an AI-generated summary; scanned documents should be OCR'd first.
+
+## Important limits
+
+- File processing happens in the browser. SajiloPDF does not upload document contents to an application server for these tools.
+- QPDF WebAssembly and the English OCR engine/language data may be downloaded by the browser on first use. This downloads tooling, not the user's PDF.
+- File size limit: 50 MB per file. Large files can still exceed the browser's available memory.
+- PDF-to-image exports are limited to 35 pages per run. OCR is limited to 15 pages per run.
+- Text overlays/watermarks/signature marks use standard PDF fonts and are most reliable for basic Latin/English text. They do not provide font embedding or full document editing.
+- Compression is lossless; PDFs dominated by already-compressed images may not get smaller.
+- Repair is best-effort and cannot restore missing content or recover every corrupted PDF.
+- DOCX/XLSX/PPTX conversions extract text and render it into PDF images; original styling and embedded content can be lost. Validate any converted document before relying on it.
+- OCR is English-only in this release and depends on scan clarity. The OCR PDF's invisible text layer skips words the standard font cannot encode; the accompanying TXT contains the OCR engine's full recognized output.
+- Browser-side type/size checks are UX guardrails, not server-side security controls. There is no login, payment, cloud file history or server upload in this release.
 
 ## Requirements
 
@@ -24,46 +59,34 @@ Tools marked **Planned** are intentionally not advertised as working yet. Each c
 
 ```bash
 npm install
-cp .env.example .env.local
 npm run dev
 ```
 
 Open http://localhost:3000.
 
-## Production build
+## Verify and build
 
 ```bash
+npm run typecheck
 npm run build
 npm run start
 ```
 
 ## Deploy to Vercel
 
-Import this folder as a new Git repository in Vercel or connect your GitHub repository. Use the default Next.js framework preset and Node.js 22.x. No environment variables are required for file processing in this milestone. Set `NEXT_PUBLIC_SITE_URL` to your real domain before production launch to generate correct canonical metadata.
+Connect `yadukumarshrestha/sajilopdf` on Vercel and use the Next.js preset. Set `NEXT_PUBLIC_SITE_URL` to the canonical production domain when a custom domain is configured.
 
-## Roadmap
+## Privacy and operational notes
 
-1. PDF rendering and image export with PDF.js.
-2. Compression, repair, PDF/A and OCR using a dedicated worker/service where appropriate.
-3. Word/Excel/PowerPoint conversions using a server worker with LibreOffice; verify output fidelity.
-4. Editor, watermark, crop and form workflows.
-5. Password-protect/unlock support with properly maintained encryption tooling.
-6. Optional accounts, quotas, queue, abuse controls, temporary storage and payments.
-7. Per-tool limits, privacy disclosures, automated tests and production monitoring.
-
-## Security and privacy notes
-
-- Current file processing happens in the browser; files are not uploaded to a SajiloPDF application server by these tools.
-- File types are checked in the browser and file size is capped at 50 MB per file. These checks are UX guardrails, not a substitute for server-side validation if server upload is added later.
-- Do not add a server endpoint for document uploads without file signature validation, resource/time limits, malware/abuse protections, and documented deletion behavior.
-- Before adding analytics, auth, ads, AI or server-side tools, update the privacy notice to match actual behavior.
+- The original files stay in the browser for the tools described above. Browser memory is used during processing; closing/reloading the tab clears app-held file data.
+- OCR and QPDF may fetch their engine assets from their package/CDN locations. PDF/document contents are processed on-device by the tool code.
+- Before adding analytics, login, cloud storage, ads, AI APIs or server uploads, update the privacy notice to match the actual data flows.
+- Before production-scale use, add browser automation and sample-file regression tests for every tool, track dependency updates, and run the tools on malformed, password-protected and large documents.
 
 ## Project structure
 
-```text
-app/                   App Router pages, metadata, and global styles
-components/             Site header, tool cards, icons, and file-processing UI
-lib/tools.ts            Tool catalog and current feature flags
-lib/format.ts           File-size formatting
-public/favicon.svg      SajiloPDF icon
-```
+- `app/`: Next.js App Router pages, metadata and styles
+- `components/tool-workspace.tsx`: browser-side document processing UI
+- `lib/tools.ts`: tool catalog and capabilities
+- `lib/format.ts`: file size formatting
+- `public/favicon.svg`: SajiloPDF favicon
