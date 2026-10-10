@@ -685,6 +685,11 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
   }
 
   return <div className={"tool-workspace" + (tool.slug === "images-to-pdf" ? " tool-workspace-images" + (files.length > 0 ? " has-image-files" : "") : "")}>
+    {tool.slug === "images-to-pdf" && <div className={"image-flow-steps" + (files.length > 0 ? " image-flow-steps-editing" : "")} aria-label="Conversion steps">
+      <div className={"image-flow-step" + (files.length === 0 ? " is-current" : " is-done")}><span>{files.length === 0 ? "01" : "✓"}</span><div><strong>Add images</strong><small>JPG, PNG or WebP</small></div></div>
+      <div className={"image-flow-step" + (files.length === 0 ? "" : outputs.length > 0 ? " is-done" : " is-current")}><span>{outputs.length > 0 ? "✓" : "02"}</span><div><strong>Arrange pages</strong><small>Preview and choose layout</small></div></div>
+      <div className={"image-flow-step" + (outputs.length > 0 ? " is-done" : busy ? " is-current" : "")}><span>{outputs.length > 0 ? "✓" : "03"}</span><div><strong>Download PDF</strong><small>Ready in your browser</small></div></div>
+    </div>}
     <div className={"workspace-card" + (tool.slug === "images-to-pdf" ? " workspace-card-image-editor" : "")}>
       <div className="workspace-card-top">
         <div>
@@ -695,9 +700,9 @@ export function ToolWorkspace({ tool }: { tool: Tool }) {
       </div>
       <div className={"dropzone" + (tool.slug === "images-to-pdf" ? " image-editor-upload" : "") + (dragging ? " dropzone-active" : "") + (files.length ? " dropzone-compact" : "")} onDragOver={(event) => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(event) => { event.preventDefault(); setDragging(false); addFiles(event.dataTransfer.files); }}>
         {files.length === 0 ? <>
-          <span className="upload-symbol"><UploadCloud size={29}/></span><h3>Drop files here</h3><p>or choose files from your device</p>
+          <span className="upload-symbol"><UploadCloud size={29}/></span><h3>{tool.slug === "images-to-pdf" ? "Drop your images here" : "Drop files here"}</h3><p>{tool.slug === "images-to-pdf" ? "Drag and drop images here, or browse your device below." : "or choose files from your device"}</p>
           <button type="button" className="button button-primary" onClick={() => inputRef.current?.click()}><Plus size={17}/> Choose {tool.slug === "images-to-pdf" ? "images" : tool.slug === "word-to-pdf" ? "DOCX file" : tool.slug === "excel-to-pdf" ? "XLSX file" : tool.slug === "ppt-to-pdf" ? "PPTX file" : "PDF file"}</button>
-          <span className="upload-limit">{tool.slug === "images-to-pdf" ? "JPG, PNG, WebP" : tool.slug === "word-to-pdf" ? "DOCX" : tool.slug === "excel-to-pdf" ? "XLSX" : tool.slug === "ppt-to-pdf" ? "PPTX" : "PDF documents"} · Up to 50 MB per file</span>
+          <span className="upload-limit">{tool.slug === "images-to-pdf" ? "JPG · PNG · WebP · Up to 50 MB per image" : tool.slug === "word-to-pdf" ? "DOCX" : tool.slug === "excel-to-pdf" ? "XLSX" : tool.slug === "ppt-to-pdf" ? "PPTX" : "PDF documents"}{tool.slug === "images-to-pdf" ? "" : " · Up to 50 MB per file"}</span>
         </> : <>
           <span className="upload-symbol upload-symbol-small"><CheckCircle2 size={23}/></span><h3>{files.length} {files.length === 1 ? "image" : "images"} selected</h3><p>{tool.slug === "images-to-pdf" ? "Add more images or adjust the thumbnails below." : "Drop a replacement or use the button below."}</p>
           <button type="button" className="button button-secondary button-small" onClick={() => inputRef.current?.click()}><Plus size={16}/> {tool.slug === "images-to-pdf" ? "Add images" : "Add files"}</button>
